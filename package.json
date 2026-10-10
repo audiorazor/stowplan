@@ -1,0 +1,30 @@
+{
+  "name": "stowplan",
+  "version": "1.1.0",
+  "description": "Truck and container load planner for touring production crews",
+  "author": "Nick Snyder",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --mac --arm64 --dir"
+  },
+  "build": {
+    "appId": "com.audiorazor.stowplan",
+    "productName": "StowPlan",
+    "files": [
+      "main.js",
+      "preload.js",
+      "app/**/*"
+    ],
+    "mac": {
+      "target": "dir",
+      "icon": "build/icon.png",
+      "category": "public.app-category.productivity",
+      "minimumSystemVersion": "13.0"
+    }
+  },
+  "devDependencies": {
+    "electron": "^34.5.8",
+    "electron-builder": "^26.15.3"
+  }
+}
