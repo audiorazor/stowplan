@@ -1129,7 +1129,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v102'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v103'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -1817,6 +1817,21 @@ function trapezoidLocalCorners(item, flip){
   const L = item.L, dA = item.depthA, dB = item.depthB, max = Math.max(dA,dB);
   if(!flip) return [{u:0,v:0},{u:L,v:0},{u:L,v:dB},{u:0,v:dA}];
   return [{u:0,v:max-dB},{u:0,v:max},{u:L,v:max},{u:L,v:max-dA}];
+}
+// the rectangle a label may occupy, in truck cm. A plain box: itself, inset. A right trapezoid:
+// a rectangle tucked into its wide half, so two frames nested point-to-point each label their
+// own end and never write over each other's angled edge
+function labelRectFor(b, inset){
+  inset = inset || 0;
+  if(b.item.shape!=='trapezoid') return { x:b.x+inset, z:b.z+inset, l:b.l-2*inset, w:b.w-2*inset };
+  const L = b.item.L, dA = b.item.depthA, dB = b.item.depthB, max = Math.max(dA,dB);
+  const wideAtStart = b.flip ? (dB >= dA) : (dA >= dB);   // flipped: the depth at u=0 is dB
+  const u0 = wideAtStart ? L*0.04 : L*0.46, u1 = wideAtStart ? L*0.54 : L*0.96;
+  const depthAt = u => b.flip ? (dB + (dA-dB)*u/L) : (dA + (dB-dA)*u/L);
+  const dNarrow = Math.min(depthAt(u0), depthAt(u1));   // the shape is at least this deep across the whole strip
+  const v0 = b.flip ? (max - dNarrow) : 0, v1 = b.flip ? max : dNarrow;
+  const r = { u0: u0+inset, v0: v0+inset, ul: (u1-u0)-2*inset, vl: (v1-v0)-2*inset };
+  return b.rot ? { x:b.x+r.v0, z:b.z+r.u0, l:r.vl, w:r.ul } : { x:b.x+r.u0, z:b.z+r.v0, l:r.ul, w:r.vl };
 }
 function trapezoidCorners(b){
   const pts = trapezoidLocalCorners(b.item, !!b.flip);
@@ -2809,18 +2824,18 @@ function renderFloor(layerOverride){
     const isMainCanvas = floorCanvas && floorCanvas.getAttribute && floorCanvas.getAttribute('data-tile');
     active = (isMainCanvas && packResult.layers && packResult.layers.length>1) ? 0 : 'all';
   }
-  all.forEach(b=>{
+  ['shape','text'].forEach(pass=> all.forEach(b=>{
     if(drag && drag.keys && drag.originTruckId===state.activeTruckId && drag.keys.includes(b.key)) return;
     if(drag && drag.shiftGroups && drag.originTruckId===state.activeTruckId){
       const grp = drag.shiftGroups.find(g=>g.keys.includes(b.key));
-      if(grp){ drawFloorBox(Object.assign({}, b, {x: b.x + grp.delta}), 0.9, levelOf(b)); return; }
+      if(grp){ drawFloorBox(Object.assign({}, b, {x: b.x + grp.delta}), 0.9, levelOf(b), undefined, pass); return; }
     }
-    if(b.isBar){ drawFloorBox(b, 1, null); return; }
+    if(b.isBar){ drawFloorBox(b, 1, null, undefined, pass); return; }
     const lvl = levelOf(b);
     const faded = active!=='all' && lvl!==active;
     if(active!=='all' && lvl>active) return; // don't draw layers above the active one
-    drawFloorBox(b, faded ? 0.25 : 1, lvl);
-  });
+    drawFloorBox(b, faded ? 0.25 : 1, lvl, undefined, pass);
+  }));
   if(drag && drag.boxes && drag.originTruckId===state.activeTruckId){ drag.boxes.forEach(bx=>drawFloorBox(bx, 0.9, null, drag.valid)); }
   // live preview while dragging a case in from the overflow lane or staging strip — a
   // to-scale outline at the exact spot it'd land, matching the on-canvas drag above,
@@ -2838,8 +2853,13 @@ function renderFloor(layerOverride){
   }
 }
 
-function drawFloorBox(b, alpha, lvl, validOverride){
+// pass: undefined = everything; 'shape' = fills/outlines/marks only; 'text' = labels only. The floor
+// plan draws every shape first and every label after, so a case lying across another (a flipped
+// frame on its partner, say) can never paint over a neighbour's name
+function drawFloorBox(b, alpha, lvl, validOverride, pass){
+  const doShape = pass!=='text', doText = pass!=='shape';
   if(b.isBar){
+    if(!doShape) return;
     const p = toPx(b.x,b.z), wpx = Math.max(3, b.l*floorGeom.scale), hpx = b.w*floorGeom.scale;
     fctx.globalAlpha = alpha;
     fctx.fillStyle = isSelected(b.key) ? '#F5B700' : '#1B1F23';
@@ -2857,6 +2877,7 @@ function drawFloorBox(b, alpha, lvl, validOverride){
   const color = colorOf(b);
   fctx.fillStyle = shade(color, 1 + Math.min(0.5,(b.y/ (packResult.container.H||1))*0.6));
   const isTrap = b.item.shape==='trapezoid';
+  if(doShape){
   if(isTrap){
     const pts = trapezoidCorners(b).map(pt=>toPx(pt.x,pt.z));
     fctx.beginPath(); pts.forEach((pt,i)=> i===0?fctx.moveTo(pt.px,pt.py):fctx.lineTo(pt.px,pt.py)); fctx.closePath();
@@ -2869,23 +2890,33 @@ function drawFloorBox(b, alpha, lvl, validOverride){
   if(isSelected(b.key)){ fctx.strokeStyle='#F5B700'; fctx.lineWidth=3; }
   if(validOverride===false){ fctx.strokeStyle='#B23A32'; fctx.lineWidth=3; }
   if(isTrap){ fctx.stroke(); } else { fctx.strokeRect(p.px+0.5,p.py+0.5,wpx-1,hpx-1); }
+  }
   // label — centered, wrapped, auto-sized name (+ dims when there's room), same layout as the print sheet
-  if(wpx>16 && hpx>9){
+  const lr = labelRectFor(Object.assign({}, b, {x:b.x+inset, z:b.z+inset, l:b.l-2*inset, w:b.w-2*inset}), 0);
+  const lp = toPx(lr.x, lr.z); const lwpx = lr.l*floorGeom.scale, lhpx = lr.w*floorGeom.scale;
+  if(doText && lwpx>16 && lhpx>9){
     const label = String(unitLabel(b.key, b.item) || '').toUpperCase();
     const dims = dimsSorted(b.item, state.units, 0).replace(/ × /g,' x ');
-    const innerL = wpx - 6, innerW = hpx - 5;
-    const { fontSize, lines, showDims, smallFs, blockH } = fitLabelLayout(label, dims, innerL, innerW, Math.min(15, hpx*0.42));
+    const innerL = lwpx - 6, innerW = lhpx - 5;
+    const { fontSize, lines, showDims, smallFs, blockH } = fitLabelLayout(label, dims, innerL, innerW, Math.min(15, lhpx*0.42));
+    fctx.save();
+    // nothing written ever leaves the case's own outline
+    fctx.beginPath();
+    if(isTrap){ const pts = trapezoidCorners(b).map(pt=>toPx(pt.x,pt.z)); pts.forEach((pt,i)=> i===0?fctx.moveTo(pt.px,pt.py):fctx.lineTo(pt.px,pt.py)); fctx.closePath(); }
+    else fctx.rect(p.px,p.py,wpx,hpx);
+    fctx.clip();
     fctx.fillStyle = textColorFor(color);
     fctx.textAlign = 'center';
-    let ty = p.py + hpx/2 - blockH/2 + fontSize;
+    let ty = lp.py + lhpx/2 - blockH/2 + fontSize;
     fctx.font = `600 ${fontSize}px IBM Plex Sans, sans-serif`;
-    lines.forEach(ln=>{ fctx.fillText(ln, p.px+wpx/2, ty); ty += fontSize*1.15; });
+    lines.forEach(ln=>{ fctx.fillText(ln, lp.px+lwpx/2, ty); ty += fontSize*1.15; });
     if(showDims){
       fctx.font = `400 ${smallFs}px IBM Plex Sans, sans-serif`;
       fctx.globalAlpha *= 0.85;
-      fctx.fillText(dims, p.px+wpx/2, ty + smallFs*0.15);
+      fctx.fillText(dims, lp.px+lwpx/2, ty + smallFs*0.15);
       fctx.globalAlpha /= 0.85;
     }
+    fctx.restore();
     fctx.textAlign = 'left';
     // weight — small rotated number along the right edge, same idea as the print sheet,
     // only when there's room beside the name/dims block so it never overlaps them
@@ -2909,6 +2940,7 @@ function drawFloorBox(b, alpha, lvl, validOverride){
   // just reads as "something's on top of this" — shown on the support, not the item on top.
   // Only on its primary (non-faded) rendering, so it doesn't also show on the dimmed
   // context copy of this box drawn alongside the layer-2 section.
+  if(!doShape){ fctx.globalAlpha = 1; return; }
   const hasAbove = alpha>=1 && packResult.placed.some(p2=>!p2.isBar && p2.key!==b.key && Math.abs(p2.y-(b.y+b.h))<0.5 &&
     Math.min(p2.x+p2.l,b.x+b.l)-Math.max(p2.x,b.x)>EPS && Math.min(p2.z+p2.w,b.z+b.w)-Math.max(p2.z,b.z)>EPS);
   if(hasAbove){
@@ -3625,12 +3657,29 @@ function rotateSelected(){
   persist(); recomputeAndRender();
 }
 function flipSelected(){
-  // flip only ever changes which end of a trapezoid is short/tall in place — position and
-  // rotation are untouched, unlike rotate which also has to re-clamp against the walls
-  const boxes = selectedBoxes().filter(b=>!b.isBar && b.item.shape==='trapezoid'); if(!boxes.length) return;
-  pushUndo(boxes.length>1 ? 'flip '+boxes.length+' cases' : 'flip');
+  // flip turns a trapezoid end-for-end in place — position and rotation are untouched. Two frames
+  // nested point-to-point are one unit on the floor: turning only one of them would lay it straight
+  // across its partner, so the partner turns with it (that is what "turn the frames round" means in
+  // the truck). If the result would still land on something, nothing moves and the reason is shown.
+  let boxes = selectedBoxes().filter(b=>!b.isBar && b.item.shape==='trapezoid'); if(!boxes.length) return;
+  const all = packResult.placed.filter(b=>!b.isBar);
+  const bboxOverlap = (a,b)=> !(a.x+a.l <= b.x+EPS || b.x+b.l <= a.x+EPS || a.z+a.w <= b.z+EPS || b.z+b.w <= a.z+EPS) && Math.abs(a.y-b.y)<EPS;
+  // the nest: trapezoids whose bounding boxes share floor with a selected one but whose outlines don't collide
+  const set = new Set(boxes.map(b=>b.key));
+  let grew = true;
+  while(grew){ grew = false; all.forEach(o=>{ if(set.has(o.key) || o.item.shape!=='trapezoid') return; if(boxes.some(b=>bboxOverlap(b,o) && !overlaps(b,o))){ set.add(o.key); boxes.push(o); grew = true; } }); }
+  // turning a nest 180° means each piece flips AND the pieces swap sides: mirror every box's
+  // across-truck position about the nest's own centre line (a lone frame stays where it is)
+  const zMin = Math.min(...boxes.map(b=>b.z)), zMax = Math.max(...boxes.map(b=>b.z+b.w));
+  const flipped = boxes.map(b=>Object.assign({}, b, { flip: !b.flip, z: zMin + zMax - (b.z + b.w) }));
+  const others = all.filter(o=>!set.has(o.key));
+  const hit = flipped.map(f=>others.find(o=>overlaps(f,o))).find(Boolean);
+  if(hit){ showToast(`Can't turn it here — it would land on ${unitLabel(hit.key, hit.item)}. Move it clear first.`); return; }
+  for(let i=0;i<flipped.length;i++) for(let j=i+1;j<flipped.length;j++) if(overlaps(flipped[i],flipped[j])){ showToast("Can't turn these — they'd land on each other. Move one clear first."); return; }
+  pushUndo(boxes.length>1 ? 'flip '+boxes.length+' frames' : 'flip');
   pinAllAuto(boxes.map(b=>b.key));
-  boxes.forEach(b=>{ state.manual[b.key] = { x:b.x, z:b.z, rot:!!b.rot, flip:!b.flip, t:Date.now() }; });
+  flipped.forEach(f=>{ state.manual[f.key] = { x:f.x, z:f.z, rot:!!f.rot, flip:!!f.flip, t:Date.now() }; });
+  if(boxes.length>1 && boxes.length>selectedBoxes().length) showToast(`Turned the nest of ${boxes.length} together`);
   persist(); recomputeAndRender();
 }
 function nudgeSelected(dx,dz){
@@ -4859,6 +4908,9 @@ const CARD_SIZES = {
   c32: {label:'Pocket card 3 × 2 in (landscape)', w:3, h:2},
   c2535:{label:'Badge 2.5 × 3.5 in', w:2.5, h:3.5},
   c34: {label:'Card 3 × 4 in', w:3, h:4},
+  // 3 × 5 index card, long ways, printed both sides: the text sits in a 2.25 × 4.5 block in the
+  // middle so nothing lands within 3/8 in of the sides or 1/4 in of the ends
+  c35: {label:'Index card 3 × 5 in (long ways, double-sided)', w:3, h:5, px:0.375, py:0.25, duplex:true},
 };
 const LABEL_SIZES = {
   l42: {label:'4 × 2 in (10 per Letter sheet)', w:4, h:2},
@@ -4907,7 +4959,9 @@ function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
 function cardName(item){ return item.short || item.name; }
 // the manifest/print-sheet label for one case: its own card-name override, else the
 // library's short label — independent of whatever custom name it has on the truck pack
-function manifestLabel(key, item){ return state.cardLabels[key] || cardName(item); }
+// pocket card / manifest wording: the short print name if one was given, else the case's own name
+// (what an imported sheet called it), else the library size's name
+function manifestLabel(key, item){ return state.cardLabels[key] || state.labels[key] || cardName(item); }
 // Works out how to fit a case's name (wrapped, centered) plus an optional dims line into a
 // box of a given size, in WHATEVER unit the box is measured in (cm for print, px for screen).
 // Shared so the on-screen floor plan and the printed pack sheet render labels identically.
@@ -4927,14 +4981,17 @@ function fitLabelLayout(label, dims, innerL, innerW, maxFs){
     // keep hunting at smaller sizes for a fit that includes dims, instead of settling for the
     // first (largest) size where just the name fits — that was silently dropping dims on
     // plenty of cases that had room for both, just not at the very largest font
-    if(dimsFits && hName + dimsFs*1.3 <= innerW){ fontSize = fs; lines = wrapped; showDims = true; break; }
-    if(!fallback && hName <= innerW){ fallback = { fs, wrapped }; }
+    // the drawn block is a touch taller than the maths (first-line ascent, last-line descender)
+    if(dimsFits && hName + dimsFs*1.3 + fs*0.35 <= innerW){ fontSize = fs; lines = wrapped; showDims = true; break; }
+    if(!fallback && hName + fs*0.35 <= innerW){ fallback = { fs, wrapped }; }
   }
   if(!fontSize && fallback){ fontSize = fallback.fs; lines = fallback.wrapped; showDims = false; }
   if(!fontSize){ fontSize = 3; lines = wrapText(label, Math.max(3, Math.floor(innerL/(3*CH))), 2); showDims = false; }
   const smallFs = Math.max(3, fontSize*0.75);
   const blockH = lines.length*fontSize*1.15 + (showDims?smallFs*1.3:0);
-  return { fontSize, lines, showDims, smallFs, blockH };
+  // last resort can still be taller than the box — keep shrinking until it isn't
+  while(innerW>0 && (lines.length*fontSize*1.15 + (showDims?smallFs*1.3:0)) > innerW && lines.length>1){ lines.pop(); lines[lines.length-1] = lines[lines.length-1].replace(/.{1}$/,'…'); }
+  return { fontSize, lines, showDims, smallFs, blockH: lines.length*fontSize*1.15 + (showDims?smallFs*1.3:0) };
 }
 
 // Stacks of identical cases on the same footprint collapse into one box (x03)
@@ -5005,6 +5062,9 @@ function truckSVG(pr, layerBoxes){
   // when a specific layer's boxes are passed, draw only those — used to give layer 2 its own
   // labeled diagram on the sheet, separate from the bottom layer's diagram
   const groups = sheetBoxes(layerBoxes ? Object.assign({}, pr, {placed: layerBoxes}) : pr);
+  let clipN = Math.floor(Math.random()*1e6);
+  let shapes = ''; // every outline goes down before any label, so a case lying across another can't hide its neighbour's text
+  const labelStart = s.length;
   groups.forEach(g=>{
     const onOther = g.minY > EPS;
     const shrink = onOther ? 3 : 0;
@@ -5012,18 +5072,26 @@ function truckSVG(pr, layerBoxes){
     if(g.item.shape==='trapezoid'){
       const pts = trapezoidCorners({x:g.x,z:g.z,item:g.item,rot:g.rot,flip:g.flip}).map(p=>({x:ox+p.x,z:oz+p.z}));
       const path = pts.map((p,i)=>`${i===0?'M':'L'}${p.x},${p.z}`).join(' ')+' Z';
-      s += `<path d="${path}" fill="#fff" stroke="#000" stroke-width="${onOther?0.5:0.8}"/>`;
+      shapes += `<path d="${path}" fill="#fff" stroke="#000" stroke-width="${onOther?0.5:0.8}"/>`;
     } else {
-      s += `<rect x="${x}" y="${z}" width="${l}" height="${w}" fill="#fff" stroke="#000" stroke-width="${onOther?0.5:0.8}"/>`;
+      shapes += `<rect x="${x}" y="${z}" width="${l}" height="${w}" fill="#fff" stroke="#000" stroke-width="${onOther?0.5:0.8}"/>`;
     }
     const firstLabel = state.labels[g.keys[0]];
     const label = firstLabel && g.keys.every(k=>(state.labels[k]||'')===firstLabel) ? firstLabel.toUpperCase() : g.item.name.toUpperCase();
     const dims = dimsSorted(g.item, u).replace(/ × /g,' x ');
-    const innerL = l - 6, innerW = w - 5;
+    const lr = labelRectFor({x:g.x+inset+shrink, z:g.z+inset+shrink, l:g.l-2*inset-2*shrink, w:g.w-2*inset-2*shrink, item:g.item, rot:g.rot, flip:g.flip}, 0);
+    const lx = ox+lr.x, lz = oz+lr.z, ll = lr.l, lw = lr.w;
+    const innerL = ll - 6, innerW = lw - 5;
     const { fontSize:nameFs, lines, showDims, smallFs, blockH } = fitLabelLayout(label, dims, innerL, innerW);
-    let ty = z + w/2 - blockH/2 + nameFs;
-    lines.forEach(ln=>{ s += `<text x="${x+l/2}" y="${ty}" font-size="${nameFs}" text-anchor="middle" font-weight="600">${esc(ln)}</text>`; ty += nameFs*1.15; });
-    if(showDims) s += `<text x="${x+l/2}" y="${ty+smallFs*0.15}" font-size="${smallFs}" text-anchor="middle">${dims}</text>`;
+    const clipId = 'c'+(clipN++);
+    s += g.item.shape==='trapezoid'
+      ? `<clipPath id="${clipId}"><path d="${trapezoidCorners({x:g.x,z:g.z,item:g.item,rot:g.rot,flip:g.flip}).map((p,i)=>`${i===0?'M':'L'}${ox+p.x},${oz+p.z}`).join(' ')} Z"/></clipPath>`
+      : `<clipPath id="${clipId}"><rect x="${x}" y="${z}" width="${l}" height="${w}"/></clipPath>`;
+    s += `<g clip-path="url(#${clipId})">`;
+    let ty = lz + lw/2 - blockH/2 + nameFs;
+    lines.forEach(ln=>{ s += `<text x="${lx+ll/2}" y="${ty}" font-size="${nameFs}" text-anchor="middle" font-weight="600">${esc(ln)}</text>`; ty += nameFs*1.15; });
+    if(showDims) s += `<text x="${lx+ll/2}" y="${ty+smallFs*0.15}" font-size="${smallFs}" text-anchor="middle">${dims}</text>`;
+    s += `</g>`;
     const tagFs = Math.max(3, Math.min(smallFs, w/5));
     if(l > 10 && w > 8) s += `<text x="${x+1.2}" y="${z+tagFs+0.6}" font-size="${tagFs}" font-weight="700">x${String(g.count).padStart(2,'0')}</text>`;
     const widest = Math.max(...lines.map(ln=>ln.length*nameFs*LABEL_CH), showDims?dims.length*smallFs*0.55:0);
@@ -5031,6 +5099,7 @@ function truckSVG(pr, layerBoxes){
     if(w > tagFs*4 && l > 10 && roomForWeight) s += `<text transform="translate(${x+l-1.5},${z+w/2}) rotate(-90)" font-size="${tagFs}" text-anchor="middle">${fmt(kgToDisplay(g.weight,u),0)}</text>`;
     if(g.count>1 && w > nameFs*4+tagFs*2) s += `<text x="${x+l/2}" y="${z+w-1.5}" font-size="${tagFs}" text-anchor="middle" fill="#444">(${g.count} STACKED)</text>`;
   });
+  s = s.slice(0, labelStart) + shapes + s.slice(labelStart);
   s += `</svg>`;
   return s;
 }
@@ -5183,13 +5252,13 @@ html,body{margin:0;padding:0;background:#fff;color:#000;font-family:'IBM Plex Sa
 .single .ttitle{ font-size:20pt; }
 .tunfit{ text-align:center; color:#B23A32; font-size:8pt; font-weight:600; }
 .pfoot{ text-align:right; font-size:11pt; font-weight:600; }
-.card-page{ width:${card.w}in; height:${card.h}in; box-sizing:border-box; padding:0.1in 0.12in; page-break-after:always; overflow:hidden; border:1px dashed #bbb; position:relative; font-size:${opts.cardFont}pt; line-height:1.28; }
+.card-page{ width:${card.w}in; height:${card.h}in; box-sizing:border-box; padding:${card.py||0.1}in ${card.px||0.12}in; page-break-after:always; overflow:hidden; border:1px dashed #bbb; position:relative; font-size:${opts.cardFont}pt; line-height:1.28; }
 .card-page:last-child{ page-break-after:auto; }
 .chead{ font-weight:700; text-decoration:underline; margin-top:0.35em; }
 .chead:first-child{ margin-top:0; }
 .cunfit{ color:#B23A32; }
 .cbar{ color:#555; font-size:0.85em; letter-spacing:0.05em; }
-.carrow{ position:absolute; bottom:0.05in; left:0.12in; right:0.12in; text-align:center; letter-spacing:0.05em; font-size:0.9em; white-space:nowrap; overflow:hidden; }
+.carrow{ position:absolute; bottom:${card.duplex ? (card.py||0.1) : 0.05}in; left:${card.px||0.12}in; right:${card.px||0.12}in; text-align:center; letter-spacing:0.05em; font-size:0.9em; white-space:nowrap; overflow:hidden; }
 .labels{ padding:0.25in; height:auto; overflow:visible; }
 .cards{ display:flex; flex-wrap:wrap; gap:0.12in; }
 .card{ width:var(--cw); height:var(--ch); border:1px solid #111; box-sizing:border-box; padding:0.1in; display:flex; flex-direction:column; break-inside:avoid; overflow:hidden; }
@@ -5222,6 +5291,8 @@ function layoutCards(){
       newPage(); page.appendChild(el);
     }
   });
+  // double-sided stock: an odd page count gets a blank back, so the next card starts on a front
+  if(${card.duplex?'true':'false'} && out.children.length % 2 === 1) newPage();
 }
 window.addEventListener('load', function(){ layoutCards(); setTimeout(layoutCards, 400); });
 if(document.fonts) document.fonts.ready.then(layoutCards);

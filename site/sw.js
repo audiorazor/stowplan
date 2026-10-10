@@ -1,6 +1,6 @@
 // StowPlan service worker — cache the app shell so it opens offline at the dock.
 // Bump CACHE when you publish a new index.html.
-const CACHE = 'stowplan-v102';
+const CACHE = 'stowplan-v103';
 const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
