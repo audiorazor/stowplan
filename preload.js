@@ -10,5 +10,6 @@ contextBridge.exposeInMainWorld('electronStore', {
   dataDir: () => ipcRenderer.invoke('store:dataDir'),
   saveBackupDialog: (defaultName, contents) => ipcRenderer.invoke('dialog:saveBackup', defaultName, contents),
   openBackupDialog: () => ipcRenderer.invoke('dialog:openBackup'),
-  showDataDir: () => ipcRenderer.invoke('shell:showDataDir')
+  showDataDir: () => ipcRenderer.invoke('shell:showDataDir'),
+  claudeMessages: (apiKey, body) => ipcRenderer.invoke('claude:messages', { apiKey, body })
 });

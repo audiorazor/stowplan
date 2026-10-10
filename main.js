@@ -75,6 +75,23 @@ ipcMain.handle('dialog:openBackup', async () => {
 });
 ipcMain.handle('shell:showDataDir', () => { shell.showItemInFolder(dataFile); });
 
+// The photo/PDF reader talks to the Claude API. From the renderer (a file:// page) the browser's
+// cross-origin rules refuse that request outright ("Failed to fetch"), so the call is made here in
+// the main process instead, where there is no origin and no CORS. The renderer only ever gets back
+// {ok, status, text}; the key is used for this one request and not stored here.
+ipcMain.handle('claude:messages', async (evt, { apiKey, body }) => {
+  try{
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': apiKey || '', 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify(body)
+    });
+    return { ok: r.ok, status: r.status, text: await r.text() };
+  }catch(e){
+    return { ok: false, status: 0, text: String(e && e.message || e) };
+  }
+});
+
 function createWindow(){
   const win = new BrowserWindow({
     width: 1400, height: 900,
