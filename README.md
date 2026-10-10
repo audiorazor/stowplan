@@ -30,3 +30,18 @@ xattr -cr /Applications/StowPlan.app && open /Applications/StowPlan.app
 ```
 
 The app is unsigned, so the first launch may need right-click → Open.
+
+## Pack JSON (import without the API)
+
+The Import dialog also takes a `.json` describing a pack sheet — the same shape the photo reader returns — so a sheet read elsewhere (e.g. by Claude in chat) drops straight in:
+
+```json
+{"trucks":[{"name":"Lifts 1","total_weight_kg":14400,"boxes":[
+  {"name":"DECK CART LIFTING RING","count":1,"dims_in":[45,102.5,76],"weight_kg":998,
+   "x_start_ft":10.5,"x_end_ft":19,"lane":"top"},
+  {"name":"FRAME 2","count":1,"shape":"trapezoid","dims_in":[64,120,24],"depth_b_in":28,
+   "weight_kg":363,"x_start_ft":0,"x_end_ft":10,"lane":"bottom","flip":true}
+]}]}
+```
+
+`dims_in` is `[width, length, height]` as printed on the sheet; `lane` is `top`, `bottom` or `full`; `rot: true` puts the short side along the truck; a trapezoid gives the depth at the straight end in `dims_in[0]` and the angled end in `depth_b_in`, with `flip` for the nested partner. Imported positions may slide forward a few cm to clear a neighbour (sheet scales are approximate).

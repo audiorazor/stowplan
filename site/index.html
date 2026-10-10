@@ -1127,7 +1127,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v98'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v99'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -1927,6 +1927,18 @@ function packLoad(){
     const rot = m.rot && !u.item.noRotate;
     const box = { key:u.key, item:u.item, manual:true, x:m.x, z:m.z, l: rot?u.item.W:u.item.L, w: rot?u.item.L:u.item.W, h:u.item.H, y:0, rot, flip:!!m.flip };
     box.y = gravityY(box, placed, u.key);
+    // a position read off a pack sheet is only as exact as the sheet's scale — a 125 in case drawn
+    // as "10 ft" lands a few cm into its neighbour. Rather than fail it, slide it down the truck
+    // (never more than a hand's width) until it clears, and remember the corrected spot
+    if(m.noAutoFallback && (box.y>EPS || placed.some(p=>!p.isBar && overlaps(box,p)))){
+      const x0 = box.x;
+      for(let dx=1; dx<=15; dx++){
+        box.x = x0 + dx; box.y = 0;
+        if(box.x + box.l > c.L + EPS) break;
+        if(!placed.some(p=>!p.isBar && overlaps(box,p))){ box.y = gravityY(box, placed, u.key); if(box.y<=EPS){ m.x = box.x; break; } }
+      }
+      if(m.x !== box.x){ box.x = x0; box.y = gravityY(box, placed, u.key); }
+    }
     // an imported position landing on top of something else (not at floor level) means it
     // collided with whatever's already there — that's as much a failure to fit as running
     // outside the container, even though the ordinary stacking rules would otherwise accept
@@ -3503,7 +3515,7 @@ function addCasesToPool(libId, n, opts){
     if(manualMap){
       ids.forEach((id,i)=>{
         const pos = opts.positions[i];
-        if(pos) manualMap[id] = { x:pos.x, z:pos.z, rot:false, flip:false, t: Date.now()+i, noAutoFallback: true };
+        if(pos) manualMap[id] = { x:pos.x, z:pos.z, rot:!!pos.rot, flip:!!pos.flip, t: Date.now()+i, noAutoFallback: true };
       });
     }
   }
@@ -5551,7 +5563,13 @@ function applyPhotoImport(parsed, opts){
     // that has to know which piece in a cluster is actually the largest
     tr.boxes.forEach(bx=>{
       const dims = Array.isArray(bx.dims_in) && bx.dims_in.length===3 && bx.dims_in.every(v=>v>0) ? bx.dims_in.map(Number) : null;
-      if(dims){ const a = dims[0]*CM_PER_IN, b = dims[1]*CM_PER_IN; bx._L = Math.max(a,b); bx._W = Math.min(a,b); bx._H = dims[2]*CM_PER_IN; }
+      bx._trap = bx.shape==='trapezoid' && dims && bx.depth_b_in>0;
+      if(bx._trap){
+        // right trapezoid: dims_in = [depth at the straight end, long side, height], depth_b_in = depth at the angled end
+        bx._dA = dims[0]*CM_PER_IN; bx._dB = Number(bx.depth_b_in)*CM_PER_IN;
+        bx._L = dims[1]*CM_PER_IN; bx._W = Math.max(bx._dA, bx._dB); bx._H = dims[2]*CM_PER_IN;
+      }
+      else if(dims){ const a = dims[0]*CM_PER_IN, b = dims[1]*CM_PER_IN; bx._L = Math.max(a,b); bx._W = Math.min(a,b); bx._H = dims[2]*CM_PER_IN; }
       else {
         const c = containerForTruck;
         const len = Math.max(20, ((bx.x_end_ft||0)-(bx.x_start_ft||0))*30.48 - (state.clearance||0));
@@ -5581,17 +5599,33 @@ function applyPhotoImport(parsed, opts){
       // opposite edge of the trailer working inward, which can walk straight into the
       // anchor once enough small pieces are queued up if the anchor itself is wide
       const anchorAtBottom = anchor.lane==='bottom';
-      const anchorZEnd = anchorAtBottom ? c.W : Math.min(c.W, anchor._W);
+      const anchorZEnd = anchorAtBottom ? c.W : Math.min(c.W, anchor.rot ? anchor._L : anchor._W);
       let cursor = anchorAtBottom ? 0 : anchorZEnd;
-      cl.boxes.forEach(bx=>{
+      // lay the rest of the cluster out like shelves beside the anchor: each piece takes the
+      // first free strip across the truck that nothing already in the cluster occupies over
+      // the same stretch of length — so two small pieces one behind the other share a strip
+      // instead of each pushing the next one further across
+      const taken = [{ x0: anchor.x_start_ft, x1: anchor.x_end_ft, z0: anchorAtBottom ? c.W - (anchor.rot ? anchor._L : anchor._W) : 0, z1: anchorAtBottom ? c.W : anchorZEnd }];
+      const zLo = anchorAtBottom ? 0 : anchorZEnd, zHi = anchorAtBottom ? taken[0].z0 : c.W;
+      cl.boxes.slice().sort((a,b)=>a.x_start_ft-b.x_start_ft).forEach(bx=>{
         bx._rowStartFt = anchor.x_start_ft;
+        const across = bx.rot ? bx._L : bx._W; // "rot": the case sits with its long side across the truck
         if(bx===anchor) return;
-        bx._rowZAbs = Math.max(0, Math.min(c.W - bx._W, cursor));
-        cursor += bx._W;
+        bx._rowStartFt = bx.x_start_ft; // keep its own length position; only the across-truck slot is solved here
+        const overX = t => !(t.x1 <= bx.x_start_ft + 0.05 || t.x0 >= bx.x_end_ft - 0.05);
+        const cands = [zLo].concat(taken.filter(overX).map(t=>t.z1)).sort((a,b)=>a-b);
+        let z = null;
+        for(const cz of cands){
+          if(cz + across > zHi + 0.5) continue;
+          if(!taken.some(t=>overX(t) && !(t.z1 <= cz + 0.05 || t.z0 >= cz + across - 0.05))){ z = cz; break; }
+        }
+        if(z===null) z = Math.max(0, Math.min(c.W - across, cursor)); // no clean strip — fall back to the old running cursor
+        bx._rowZAbs = z; cursor = Math.max(cursor, z + across);
+        taken.push({ x0: bx.x_start_ft, x1: bx.x_end_ft, z0: z, z1: z + across });
       });
     });
 
-    tr.boxes.forEach(bx=>{
+    tr.boxes.slice().sort((a,b)=>((a._rowStartFt!=null?a._rowStartFt:a.x_start_ft)||0)-((b._rowStartFt!=null?b._rowStartFt:b.x_start_ft)||0)).forEach(bx=>{
       const count = Math.max(1, parseInt(bx.count)||1);
       const Lcm = bx._L, Wcm = bx._W, Hcm = bx._H;
       const perUnitKg = bx.weight_kg ? bx.weight_kg/count : null;
@@ -5599,9 +5633,14 @@ function applyPhotoImport(parsed, opts){
       const name = rawName.toLowerCase().replace(/\b([a-z0-9])/g, m=>m.toUpperCase());
       const cardName = (bx.cardName||'').trim() || undefined;
       const category = bx.category || guessCategory(name);
-      let lib = findLibBySize(Lcm, Wcm, Hcm, null);
+      const same = (a,b)=>Math.abs(a-b)<=2.6;
+      let lib = bx._trap
+        ? (state.gearLibrary.find(g=>g.shape==='trapezoid' && same(g.L,Lcm) && same(g.H,Hcm) && same(g.depthA,bx._dA) && same(g.depthB,bx._dB)) || null)
+        : findLibBySize(Lcm, Wcm, Hcm, null);
+      if(lib && lib.shape==='trapezoid' && !bx._trap) lib = null; // a rectangle never borrows a trapezoid's entry
       if(!lib){
         lib = { id:'g_'+Date.now()+'_'+Math.floor(Math.random()*100000), name:(catById(category).short||'CART').toUpperCase(), short:'', category, L:Lcm, W:Wcm, H:Hcm, weight: perUnitKg||300, stackable: category==='caddy'||category==='truss', floorOnly: !(category==='caddy'||category==='truss'), noRotate:false };
+        if(bx._trap){ lib.shape = 'trapezoid'; lib.depthA = bx._dA; lib.depthB = bx._dB; lib.name = (rawName||'FRAME').toUpperCase(); }
         state.gearLibrary.push(lib); newTypes++;
       }
       // spread the group's read x-range across its count, placing each copy end to end
@@ -5615,13 +5654,14 @@ function applyPhotoImport(parsed, opts){
         // never space copies closer than the box's own length — the read span is only an
         // estimate, and a slot smaller than the box itself would overlap the next one and
         // get auto-stacked instead of laid out side by side, which defeats the point
-        const slotCm = Math.max(Lcm, (spanFt*30.48) / count);
-        const baseZ = bx.lane==='bottom' ? Math.max(0, c.W - Wcm) : 0;
+        const alongL = bx.rot ? Wcm : Lcm, acrossW = bx.rot ? Lcm : Wcm;
+        const slotCm = Math.max(alongL, (spanFt*30.48) / count);
+        const baseZ = bx.lane==='bottom' ? Math.max(0, c.W - acrossW) : 0;
         const z = bx._rowZAbs!=null ? bx._rowZAbs : baseZ;
         positions = [];
         for(let i=0;i<count;i++){
-          const x = Math.max(0, Math.min(c.L - Lcm, startFt*30.48 + i*slotCm));
-          positions.push({ x, z: Math.max(0, Math.min(c.W - Wcm, z)) });
+          const x = Math.max(0, Math.min(c.L - alongL, startFt*30.48 + i*slotCm));
+          positions.push({ x, z: Math.max(0, Math.min(c.W - acrossW, z)), flip: !!bx.flip, rot: !!bx.rot });
         }
       }
       addCasesToPool(lib.id, count, { name: name||undefined, cardName, weight: (perUnitKg && Math.abs(perUnitKg-lib.weight)>0.5) ? perUnitKg : undefined, source, assignTo: targetTruckId||undefined, positions });
