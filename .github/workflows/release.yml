@@ -1,0 +1,38 @@
+name: Build & release Mac app
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build Apple Silicon app
+        run: npx electron-builder --mac --arm64 --dir
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Package (tar, not zip — Archive Utility chokes on builder's zip)
+        run: tar -czf StowPlan-AppleSilicon-Mac.tar.gz -C dist/mac-arm64 StowPlan.app
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: StowPlan ${{ github.ref_name }}
+          files: StowPlan-AppleSilicon-Mac.tar.gz
+          body: |
+            Apple Silicon Mac build. First launch may need right-click → Open (unsigned).
+
+            ```
+            cd ~/Downloads && curl -LO https://github.com/audiorazor/stowplan/releases/download/${{ github.ref_name }}/StowPlan-AppleSilicon-Mac.tar.gz
+            tar -xzf StowPlan-AppleSilicon-Mac.tar.gz && rm -rf /Applications/StowPlan.app && mv StowPlan.app /Applications/
+            xattr -cr /Applications/StowPlan.app && open /Applications/StowPlan.app
+            ```
