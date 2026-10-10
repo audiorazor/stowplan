@@ -1129,7 +1129,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v104'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v105'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -1585,7 +1585,7 @@ async function loadFromStorage(){
       state.poolFilter = parsed.poolFilter || {};
       state.gearLibCollapsed = !!parsed.gearLibCollapsed;
       state.poolCollapsed = !!parsed.poolCollapsed;
-      state.isoCollapsed = !!parsed.isoCollapsed;
+      state.isoCollapsed = parsed.isoCollapsed === undefined ? true : !!parsed.isoCollapsed; // folded unless they've opened it
     } else if(window.matchMedia && window.matchMedia('(max-width:900px)').matches){
       // first run on a phone: start with the library and pool folded so the trucks aren't a long scroll away
       state.gearLibCollapsed = true; state.poolCollapsed = true;
@@ -1621,6 +1621,7 @@ async function loadFromStorage(){
     }
     hadConfig = !!cfg;
   }catch(e){ /* no data yet */ }
+  if(!hadConfig) state.isoCollapsed = true; // first run: the isometric view starts folded away
   if(!hadConfig && window.matchMedia && window.matchMedia('(max-width:900px)').matches){
     // first run on a phone: start with the library and pool folded so the trucks aren't a long scroll away
     state.gearLibCollapsed = true; state.poolCollapsed = true;
