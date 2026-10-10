@@ -1129,7 +1129,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v103'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v104'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -2555,16 +2555,35 @@ function drawBox(b, cx, cz, scale, originX, originY, color){
   // its rotated normal has a positive (rx+rz) component.
   const cosR = Math.cos(state.rotation), sinR = Math.sin(state.rotation);
   const visible = (nx,nz)=>{ const rx = nx*cosR - nz*sinR, rz = nx*sinR + nz*cosR; return rx+rz > 0; };
-  const top = [p(0,h,0), p(l,h,0), p(l,h,w), p(0,h,w)];
-  const faces = [
+  let top, faces;
+  if(b.item && b.item.shape==='trapezoid'){
+    // a frame is a trapezoidal prism: its real floor outline extruded up, one wall per edge, drawn
+    // when that wall's outward normal faces the viewer — same rule as the four walls of a box
+    const fp = trapezoidCorners(b).map(c=>({ dx:c.x - b.x + inset, dz:c.z - b.z + inset }));
+    const pp = (c,dy)=>project(b.x + c.dx, y+dy, b.z + c.dz, cx, cz, scale, originX, originY);
+    top = fp.map(c=>pp(c,h));
+    // outline winding: make it clockwise in x/z so the outward normal of each edge is (dz, -dx)
+    const area = fp.reduce((a,c,i)=>{ const n = fp[(i+1)%fp.length]; return a + (c.dx*n.dz - n.dx*c.dz); }, 0);
+    const ring = area > 0 ? fp.slice().reverse() : fp;
+    faces = ring.map((c,i)=>{
+      const n = ring[(i+1)%ring.length];
+      const ex = n.dx - c.dx, ez = n.dz - c.dz, len = Math.hypot(ex,ez) || 1;
+      const nx = ez/len, nz = -ex/len;
+      return { n:[nx,nz], pts:[pp(c,0), pp(n,0), pp(n,h), pp(c,h)], shade: Math.abs(nx) > Math.abs(nz) ? 0.65 : 0.85 };
+    }).filter(f=>visible(f.n[0], f.n[1]));
+    if(area > 0) top = top.slice().reverse();
+  } else {
+  top = [p(0,h,0), p(l,h,0), p(l,h,w), p(0,h,w)];
+  faces = [
     { n:[0,1],  pts:[p(0,0,w), p(l,0,w), p(l,h,w), p(0,h,w)], shade:0.85 }, // +z
     { n:[0,-1], pts:[p(0,0,0), p(l,0,0), p(l,h,0), p(0,h,0)], shade:0.85 }, // -z
     { n:[1,0],  pts:[p(l,0,0), p(l,0,w), p(l,h,w), p(l,h,0)], shade:0.65 }, // +x
     { n:[-1,0], pts:[p(0,0,0), p(0,0,w), p(0,h,w), p(0,h,0)], shade:0.65 }, // -x
   ].filter(f=>visible(f.n[0], f.n[1]));
+  }
   // keep the lighter shade on whichever visible side is more "front-on" so the box reads the same at any angle
   faces.sort((a,b)=>{ const s = f=>{ const rx=f.n[0]*cosR-f.n[1]*sinR, rz=f.n[0]*sinR+f.n[1]*cosR; return rz-rx; }; return s(b)-s(a); });
-  if(faces.length===2){ faces[0].shade=0.85; faces[1].shade=0.65; }
+  if(faces.length===2 && !(b.item && b.item.shape==='trapezoid')){ faces[0].shade=0.85; faces[1].shade=0.65; }
   function poly(pts, fill){
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y);
