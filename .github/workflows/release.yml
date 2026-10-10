@@ -1,8 +1,13 @@
 name: Build & release Mac app
 
+# Every push to main that touches the app builds the Apple Silicon bundle and publishes it as a
+# GitHub Release tagged with APP_VERSION from app/stowplan.html (e.g. v95). Re-pushing the same
+# version updates that release's asset in place.
 on:
   push:
-    tags: ['v*']
+    branches: [main]
+    paths: ['app/**', 'main.js', 'preload.js', 'package.json', 'build/icon.png', '.github/workflows/release.yml']
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -17,6 +22,9 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Read APP_VERSION
+        id: ver
+        run: echo "tag=$(grep -o "APP_VERSION = 'v[0-9]*'" app/stowplan.html | grep -o 'v[0-9]*')" >> "$GITHUB_OUTPUT"
       - name: Build Apple Silicon app
         run: npx electron-builder --mac --arm64 --dir
         env:
@@ -26,13 +34,14 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          name: StowPlan ${{ github.ref_name }}
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: StowPlan ${{ steps.ver.outputs.tag }}
           files: StowPlan-AppleSilicon-Mac.tar.gz
           body: |
             Apple Silicon Mac build. First launch may need right-click → Open (unsigned).
 
             ```
-            cd ~/Downloads && curl -LO https://github.com/audiorazor/stowplan/releases/download/${{ github.ref_name }}/StowPlan-AppleSilicon-Mac.tar.gz
+            cd ~/Downloads && curl -LO https://github.com/audiorazor/stowplan/releases/download/${{ steps.ver.outputs.tag }}/StowPlan-AppleSilicon-Mac.tar.gz
             tar -xzf StowPlan-AppleSilicon-Mac.tar.gz && rm -rf /Applications/StowPlan.app && mv StowPlan.app /Applications/
             xattr -cr /Applications/StowPlan.app && open /Applications/StowPlan.app
             ```
