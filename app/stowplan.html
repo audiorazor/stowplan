@@ -1127,7 +1127,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v99'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v100'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -5689,8 +5689,8 @@ function openPhotoImportModal(){
     </div>
     <div id="ph_status" style="font-size:12px;min-height:18px;margin-bottom:6px;"></div>
     <div id="ph_review" style="max-height:340px;overflow:auto;"></div>
-    <label id="ph_assign_row" style="display:none;font-size:12px;color:var(--ink-soft);align-items:center;gap:6px;margin-top:8px;">
-      <input type="checkbox" id="ph_assign"> Create a truck for each sheet (matching an existing truck by name if there is one) and assign these cases directly, instead of leaving them in the Pool
+    <label id="ph_assign_row" style="display:none;font-size:13px;color:var(--ink);align-items:center;gap:8px;margin-top:10px;padding:8px 10px;background:#FFF6D9;border:1px solid var(--hazard);border-radius:var(--radius);">
+      <input type="checkbox" id="ph_assign" checked> <span><b>Create a truck for each sheet</b> and put its cases straight in (an existing truck with the same name is reused). Untick to leave everything in the Pool instead.</span>
     </label>
     <div class="modal-row" style="margin-top:10px;"><button class="btn-ghost" id="ph_cancel">Cancel</button><button class="btn-block" id="ph_read" style="flex:0 0 auto;">Read files</button><button class="btn-block" id="ph_apply" style="flex:0 0 auto;display:none;">Import</button></div>`);
   back.querySelector('.modal').classList.add('wide');
