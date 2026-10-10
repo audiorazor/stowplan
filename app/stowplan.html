@@ -1127,7 +1127,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v97'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v98'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -5405,6 +5405,15 @@ Return ONLY a JSON object, no prose, no markdown fences:
 Rules: for "count", COUNT ONLY THE ACTUAL DISTINCT BOX OUTLINES you can see drawn for that item. Never use a printed "xNN" tag as the count, even as a fallback — those tags are frequently wrong and can't be trusted, including for boxes drawn stacked directly on top of each other as a single overlapping outline (count what's visibly there, e.g. 1 outline, and set "stacked" instead of inflating the count to match the tag). Dims are printed like "30 x 102.5 x 76" — keep that order. "lane" is which half of the trailer width the box sits in (top of drawing = top). Estimate x positions from the scale as best you can. Include boxes even if you can't read dims (use null). Do not invent boxes.`;
 
 async function readPackPhoto(file, apiKey){
+  // a .json pack file (same shape Claude returns from a photo: {"trucks":[{"name","boxes":[...]}]})
+  // is taken as-is — no API call, no key — so a pack read elsewhere can be dropped straight in
+  if(file.type==='application/json' || /\.json$/i.test(file.name||'')){
+    const text = await file.text();
+    let obj; try{ obj = JSON.parse(text); }catch(e){ throw new Error((file.name||'That file')+" isn't valid JSON."); }
+    if(Array.isArray(obj)) obj = { trucks: obj };
+    if(!obj || !Array.isArray(obj.trucks)) throw new Error((file.name||'That file')+' needs a top-level "trucks" list.');
+    return obj;
+  }
   const base64 = await new Promise((res, rej)=>{ const r = new FileReader(); r.onload = ()=>res(r.result.split(',')[1]); r.onerror = ()=>rej(new Error('Could not read file')); r.readAsDataURL(file); });
   const headers = { 'Content-Type': 'application/json' };
   if(apiKey){ headers['x-api-key'] = apiKey; headers['anthropic-version'] = '2023-06-01'; headers['anthropic-dangerous-direct-browser-access'] = 'true'; }
@@ -5628,8 +5637,8 @@ function applyPhotoImport(parsed, opts){
 function openPhotoImportModal(){
   const key = localStorage.getItem(LS_PREFIX+'api-key') || '';
   const back = openModal(`<h3>Import from photo or PDF</h3>
-    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">Photograph a printed truck-pack sheet (straight on, good light), or upload the PDF directly. Claude reads the boxes; review and fix anything below before importing.</div>
-    <input type="file" id="ph_files" accept="image/*,application/pdf" multiple capture="environment" style="margin-bottom:8px;">
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px;">Photograph a printed truck-pack sheet (straight on, good light), upload the PDF directly, or drop in a pack .json that was read elsewhere. Claude reads the boxes; review and fix anything below before importing.</div>
+    <input type="file" id="ph_files" accept="image/*,application/pdf,application/json,.json" multiple capture="environment" style="margin-bottom:8px;">
     <div id="ph_pdf_info" style="display:none;font-size:12px;color:var(--ink-soft);margin-bottom:8px;">
       <span id="ph_pdf_count"></span> — <label>Pages to read <input type="text" id="ph_pdf_range" placeholder="e.g. 1-15" style="width:110px;margin:0;"></label>
       <div style="margin-top:2px;">One page is read at a time, so duplicate or reformatted-for-print copies of the same pages (like a larger "AUTO" version of each truck) should usually be left out of the range — reading both just double-counts everything.</div>
