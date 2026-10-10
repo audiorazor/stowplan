@@ -784,6 +784,8 @@
   .ph-row2{ display:grid; grid-template-columns: minmax(90px,1fr) 84px 52px 52px 52px 66px minmax(60px,0.8fr); gap:5px; align-items:center; margin-bottom:8px; padding-left:2px; }
   .ph-row2 input, .ph-row2 select{ width:100%; margin-bottom:0; padding:4px 5px; font-size:12px; }
   .ph-head{ font-size:10px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em; }
+  .ph-row{ position:relative; }
+  .ph-alike{ position:absolute; right:74px; top:50%; transform:translateY(-50%); font-size:10px; font-weight:600; color:var(--steel); background:#EEF2F5; border:1px solid #D6DEE4; border-radius:10px; padding:0 6px; pointer-events:auto; cursor:help; }
   .modal h3{margin:0 0 10px;font-size:15px;}
   .modal input{
     width:100%;
@@ -1127,7 +1129,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v100'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v101'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -5638,6 +5640,7 @@ function applyPhotoImport(parsed, opts){
         ? (state.gearLibrary.find(g=>g.shape==='trapezoid' && same(g.L,Lcm) && same(g.H,Hcm) && same(g.depthA,bx._dA) && same(g.depthB,bx._dB)) || null)
         : findLibBySize(Lcm, Wcm, Hcm, null);
       if(lib && lib.shape==='trapezoid' && !bx._trap) lib = null; // a rectangle never borrows a trapezoid's entry
+      if(lib && bx._catEdited && catOf(lib)!==category) lib = null; // a category picked in the review wins over a same-size match
       if(!lib){
         lib = { id:'g_'+Date.now()+'_'+Math.floor(Math.random()*100000), name:(catById(category).short||'CART').toUpperCase(), short:'', category, L:Lcm, W:Wcm, H:Hcm, weight: perUnitKg||300, stackable: category==='caddy'||category==='truss', floorOnly: !(category==='caddy'||category==='truss'), noRotate:false };
         if(bx._trap){ lib.shape = 'trapezoid'; lib.depthA = bx._dA; lib.depthB = bx._dB; lib.name = (rawName||'FRAME').toUpperCase(); }
@@ -5716,7 +5719,14 @@ function openPhotoImportModal(){
   function renderReview(){
     const wrap = back.querySelector('#ph_review');
     const catOptions = cats().map(c=>`<option value="${c.id}">${esc(c.short||c.label)}</option>`).join('');
-    wrap.innerHTML = parsedAll.trucks.map((t,ti)=>{
+    // boxes that came off the sheet as the same thing (same name + printed size) are edited together —
+    // fixing a weight or a category once should fix all ten of them. The signature is taken from the
+    // values as read, so it survives the edits themselves.
+    const sigOf = b => ((b.name||'').trim().toUpperCase().replace(/\s+/g,' ')+'|'+(Array.isArray(b.dims_in)?b.dims_in.join('x'):''));
+    const sigCount = {};
+    parsedAll.trucks.forEach(t=>(t.boxes||[]).forEach(b=>{ if(!b._sig) b._sig = sigOf(b); sigCount[b._sig] = (sigCount[b._sig]||0)+1; }));
+    const linkedOn = ()=>{ const el = back.querySelector('#ph_linked'); return !el || el.checked; };
+    wrap.innerHTML = `<label style="display:flex;align-items:center;gap:8px;font-size:12px;margin:0 0 8px;padding:6px 8px;background:var(--surface-low);border:1px solid var(--line);border-radius:var(--radius);"><input type="checkbox" id="ph_linked" ${parsedAll._linked===false?'':'checked'}> <span><b>Edit alike boxes together</b> — a change to a name, category, size or weight here is applied to every box that was read as the same thing, on every sheet. Untick to edit one row at a time.</span></label>` + parsedAll.trucks.map((t,ti)=>{
       const caseCount = (t.boxes||[]).reduce((n,b)=>n+(parseInt(b.count)||1),0);
       return `<div class="other-truck" data-truck="${ti}" style="margin-bottom:12px;">
         <div class="ot-head active" style="gap:6px;">
@@ -5732,7 +5742,7 @@ function openPhotoImportModal(){
           const pos = b.x_start_ft!=null ? `${fmt(b.x_start_ft,0)}'–${fmt(b.x_end_ft,0)}' ${b.lane||''}` : '';
           return `<div data-box="${ti}:${bi}" style="border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:6px;">
             <div class="ph-row">
-              <input type="text" data-f="name" value="${esc(b.name||'')}" placeholder="Name" title="${esc(b.name||'')}">
+              <input type="text" data-f="name" value="${esc(b.name||'')}" placeholder="Name" title="${esc(b.name||'')}">${sigCount[b._sig]>1?`<span class="ph-alike" title="${sigCount[b._sig]} boxes were read as this same item — with 'Edit alike boxes together' on, a change here reaches all of them">×${sigCount[b._sig]} alike</span>`:''}
               <input type="number" min="1" data-f="count" value="${parseInt(b.count)||1}" title="Quantity">
               <button type="button" data-rmbox="${ti}:${bi}" class="icon-btn" title="Remove this row">×</button>
             </div>
@@ -5755,21 +5765,39 @@ function openPhotoImportModal(){
     wrap.querySelectorAll('[data-rmbox]').forEach(btn=>{
       btn.onclick = ()=>{ const [ti,bi] = btn.getAttribute('data-rmbox').split(':').map(Number); parsedAll.trucks[ti].boxes.splice(bi,1); renderReview(); };
     });
+    const toggle = back.querySelector('#ph_linked'); if(toggle) toggle.onchange = ()=>{ parsedAll._linked = toggle.checked; };
+    // every row's inputs, keyed by signature, so a linked edit can update the other rows in place
+    // (a full re-render would steal the cursor out of the field being typed in)
+    const rowsBySig = {};
+    wrap.querySelectorAll('[data-box]').forEach(row=>{
+      const [ti,bi] = row.getAttribute('data-box').split(':').map(Number);
+      const b = parsedAll.trucks[ti].boxes[bi];
+      (rowsBySig[b._sig] = rowsBySig[b._sig] || []).push({ row, b });
+    });
     wrap.querySelectorAll('[data-box]').forEach(row=>{
       const [ti,bi] = row.getAttribute('data-box').split(':').map(Number);
       const b = parsedAll.trucks[ti].boxes[bi];
       const get = f => row.querySelector(`[data-f="${f}"]`);
       get('category').value = b.category;
-      get('name').oninput = ()=>{ b.name = get('name').value; get('name').title = b.name; };
-      get('cardName').oninput = ()=>{ b.cardName = get('cardName').value; };
-      get('category').onchange = ()=>{ b.category = get('category').value; };
-      get('count').oninput = ()=>{ b.count = Math.max(1, parseInt(get('count').value)||1); };
+      // apply fn(box, rowEl) to this box, and to every alike box when linking is on
+      const spread = (fn)=>{ fn(b, row); if(linkedOn()) rowsBySig[b._sig].forEach(o=>{ if(o.b!==b) fn(o.b, o.row); }); };
+      const setField = (r, f, v)=>{ const el = r.querySelector(`[data-f="${f}"]`); if(el && el.value!==String(v)) el.value = v; };
+      get('name').oninput = ()=>{ const v = get('name').value; spread((x,r)=>{ x.name = v; setField(r,'name',v); r.querySelector('[data-f="name"]').title = v; }); };
+      get('cardName').oninput = ()=>{ const v = get('cardName').value; spread((x,r)=>{ x.cardName = v; setField(r,'cardName',v); }); };
+      get('category').onchange = ()=>{ const v = get('category').value; spread((x,r)=>{ x.category = v; x._catEdited = true; setField(r,'category',v); }); };
+      get('count').oninput = ()=>{ b.count = Math.max(1, parseInt(get('count').value)||1); }; // quantity is per row on purpose
       const syncDims = ()=>{
         const w=parseFloat(get('dimW').value), l=parseFloat(get('dimL').value), h=parseFloat(get('dimH').value);
-        b.dims_in = (w>0 && l>0 && h>0) ? [w,l,h] : null;
+        const dims = (w>0 && l>0 && h>0) ? [w,l,h] : null;
+        spread((x,r)=>{ x.dims_in = dims; setField(r,'dimW',get('dimW').value); setField(r,'dimL',get('dimL').value); setField(r,'dimH',get('dimH').value); });
       };
       get('dimW').oninput = syncDims; get('dimL').oninput = syncDims; get('dimH').oninput = syncDims;
-      get('weight').oninput = ()=>{ const v = parseFloat(get('weight').value); b.weight_kg = v>0 ? displayToKg(v, u) : null; };
+      get('weight').oninput = ()=>{
+        const v = parseFloat(get('weight').value);
+        // the field shows the row's total; alike rows with a different quantity get the same per-case weight
+        const perUnitKg = v>0 ? displayToKg(v, u) / Math.max(1, parseInt(b.count)||1) : null;
+        spread((x,r)=>{ const n = Math.max(1, parseInt(x.count)||1); x.weight_kg = perUnitKg!=null ? perUnitKg*n : null; if(x!==b) setField(r,'weight', perUnitKg!=null ? tidyNum(kgToDisplay(perUnitKg*n,u)) : ''); });
+      };
     });
   }
 
