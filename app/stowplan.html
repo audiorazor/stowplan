@@ -1144,7 +1144,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v111'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v112'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -2806,6 +2806,7 @@ let pan = null;           // {startX,startY,viewX,viewY,moved}
 let truckMove = null;     // {block,startWx,startWy,origX,origY,moved}
 let freeDrag = null;      // {key,item,fromTruckId,offWx,offWz,wx,wz,moved,overBlock}
 let spaceHeld = false;
+let truckQuiet = false;   // true after clicking blank space: the editing truck's frame goes quiet until you click into a truck
 // picks a "nice" tick spacing from a candidate list that gives roughly 5-7 labeled ticks
 function niceRulerStep(totalUnits, candidates){
   const target = totalUnits/6;
@@ -3097,8 +3098,10 @@ function drawTruckTitle(block, isActive){
   const status = s ? s.status : 'ok';
   const dotColor = ({ok:'#2E7D32', warn:'#C98A00', stop:'#B23A32'})[status] || '#2E7D32';
   if(isActive){
-    fctx.strokeStyle = '#F5B700'; fctx.lineWidth = 3;
+    fctx.strokeStyle = truckQuiet ? 'rgba(27,31,35,0.28)' : '#F5B700'; fctx.lineWidth = truckQuiet ? 1.5 : 3;
+    if(truckQuiet) fctx.setLineDash([6,4]);
     fctx.strokeRect(g.offX-4, g.offZ-4, block.c.L*g.scale+8, block.c.W*g.scale+8);
+    fctx.setLineDash([]);
   }
   // title band: dot · name · container · weight
   fctx.fillStyle = dotColor; fctx.beginPath(); fctx.arc(x+4, y-4, 4, 0, Math.PI*2); fctx.fill();
@@ -3107,7 +3110,7 @@ function drawTruckTitle(block, isActive){
   const name = block.t.name; fctx.fillText(name, x+14, y-3);
   const nw = fctx.measureText(name).width;
   fctx.fillStyle = '#6B7177'; fctx.font = '400 10px IBM Plex Sans, sans-serif';
-  const meta = `${s ? s.label : ''}${s ? ' · '+s.weightText : ''}${isActive ? ' · editing' : ''}`;
+  const meta = `${s ? s.label : ''}${s ? ' · '+s.weightText : ''}${isActive && !truckQuiet ? ' · editing' : ''}`;
   const availW = block.c.L*g.scale - nw - 20;
   if(availW > 60) fctx.fillText(meta.length*5.2 > availW ? (s ? s.weightText : '') : meta, x+14+nw+8, y-3);
   if(!block.pr.placed.length && !block.lane.boxes.length && block.c.L*g.scale > 160){
@@ -3535,6 +3538,7 @@ function freeBoxAtWorld(wx, wy){
   return null;
 }
 function focusTruckLight(truckId){
+  truckQuiet = false;
   if(truckId===state.activeTruckId) return;
   syncActiveTruck();
   loadTruckIntoState(state.trucks.find(t=>t.id===truckId));
@@ -3566,14 +3570,14 @@ function handleFloorPointerDown(e){
   }
   const tb = titleBlockAt(px, py);
   if(tb){
-    focusTruckLight(tb.t.id);
+    focusTruckLight(tb.t.id); truckQuiet = false;
     truckMove = { block: tb, startWx: wx, startWy: wy, origX: tb.x, origY: tb.y, moved:false, hadWs: !!tb.t.ws };
     updateFocusVisuals(); renderFloor(); renderSelBar();
     return;
   }
   const block = blockAtWorld(wx, wy, 0);
   if(block){
-    focusTruckLight(block.t.id);
+    focusTruckLight(block.t.id); truckQuiet = false;
     const b2 = activeBlock() || block;
     floorGeom = geomFor(b2);
     const hit = hitTest(px,py);
@@ -3694,7 +3698,7 @@ function endDrag(e){
   if(trayScroll){ const ts = trayScroll; trayScroll = null; if(!ts.moved){ clearSelection(); afterSelectionChange(); } else renderFloor(); return; }
   if(pan){
     const p = pan; pan = null;
-    if(!p.moved){ clearSelection(); renderFloor(); renderIso(); renderSelBar(); }
+    if(!p.moved){ clearSelection(); truckQuiet = true; renderFloor(); renderIso(); renderSelBar(); }
     else persist();
     return;
   }
@@ -4434,6 +4438,7 @@ document.addEventListener('keydown', e=>{
   if(e.key==='Home' && state.view){ e.preventDefault(); fitAll(); persist(); renderFloor(); return; }
   if((e.key==='+' || e.key==='=') && !e.ctrlKey && !e.metaKey && state.view){ e.preventDefault(); zoomAt(floorGeom.w/2, floorGeom.h/2, 1.25); persist(); renderFloor(); return; }
   if(e.key==='-' && !e.ctrlKey && !e.metaKey && state.view){ e.preventDefault(); zoomAt(floorGeom.w/2, floorGeom.h/2, 0.8); persist(); renderFloor(); return; }
+  if(e.key==='Escape' && !state.selectedKey){ closeCtxMenu(); truckQuiet = true; renderFloor(); return; }
   if(!state.selectedKey) return;
   if(e.key==='Enter' && !e.ctrlKey && !e.metaKey){ const n = $('#insp_name'); if(n){ e.preventDefault(); n.focus(); n.select(); } return; }
   const step = (state.units==='imperial' ? CM_PER_IN : 1) * (e.shiftKey?10:1);
@@ -4444,7 +4449,7 @@ document.addEventListener('keydown', e=>{
   else if(e.key==='ArrowRight'){ e.preventDefault(); nudgeSelected(step,0); }
   else if(e.key==='ArrowUp'){ e.preventDefault(); nudgeSelected(0,-step); }
   else if(e.key==='ArrowDown'){ e.preventDefault(); nudgeSelected(0,step); }
-  else if(e.key==='Escape'){ clearSelection(); afterSelectionChange(); }
+  else if(e.key==='Escape'){ clearSelection(); truckQuiet = true; afterSelectionChange(); }
   else if(e.key==='Delete' || e.key==='Backspace'){
     const sel = selectedBoxes();
     if(!sel.length){ const cs = inspectedCases(); if(!cs.length) return; e.preventDefault(); const ids = cs.map(c=>c.id); if(ids.some(id=>ownerOf(id))){ pushUndo('unassign'); assignCases(ids, null); setSelection(ids, ids[ids.length-1]); persist(); recomputeAndRender(); showToast(`${ids.length} case${ids.length>1?'s':''} now unassigned`); } return; }
@@ -4495,6 +4500,7 @@ function emptyTruck(id){
   showToast(`${t.name} emptied — ${n} case${n!==1?'s':''} now unassigned`);
 }
 function switchTruck(id){
+  truckQuiet = false;
   if(id===state.activeTruckId) return;
   syncActiveTruck();
   (state.invFold||(state.invFold={}))[id] = false;   // the truck being edited is always open in the Cases list
@@ -4690,7 +4696,7 @@ function renderTruckBar(){
   const wrap = $('#truckBar'); if(!wrap) return;
   const t = activeTruck(); if(!t){ wrap.innerHTML = ''; return; }
   const pick = $('#truckPick');
-  if(pick){ pick.innerHTML = state.trucks.map(x=>`<option value="${x.id}" ${x.id===t.id?'selected':''}>${esc(x.name)}</option>`).join(''); pick.onchange = ()=>{ switchTruck(pick.value); const b = activeBlock(); if(b){ revealTruck(b.t.id); renderFloor(); } }; }
+  if(pick){ pick.innerHTML = state.trucks.map(x=>`<option value="${x.id}" ${x.id===t.id?'selected':''}>${esc(x.name)}</option>`).join(''); pick.onchange = ()=>{ truckQuiet = false; switchTruck(pick.value); const b = activeBlock(); if(b){ revealTruck(b.t.id); renderFloor(); } }; }
   wrap.innerHTML = `
     <select class="wt-container-sel" id="truckTypeSel" title="This truck's container / vehicle type">${Object.keys(PRESETS).map(k=>`<option value="${k}" ${t.containerKey===k?'selected':''}>${esc(PRESETS[k].label)}</option>`).join('')}</select>
     <button class="btn-ghost" id="truckMenuBtn" style="padding:0 9px;height:var(--ctl-h);" title="Everything you can do to this truck">Truck ▾</button>`;
