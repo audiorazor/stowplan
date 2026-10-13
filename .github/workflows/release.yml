@@ -60,10 +60,19 @@ jobs:
         id: ver
         shell: bash
         run: echo "tag=$(grep -o "APP_VERSION = 'v[0-9]*'" app/stowplan.html | grep -o 'v[0-9]*')" >> "$GITHUB_OUTPUT"
+      - name: Allow symlinks (electron-builder's winCodeSign bundle needs Developer Mode)
+        run: reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v AllowDevelopmentWithoutDevLicense /d 1
       - name: Build Windows installer + portable exe
-        run: npx electron-builder --win --x64
+        shell: bash
+        run: npx electron-builder --win --x64 2>&1 | tee build-log.txt; test ${PIPESTATUS[0]} -eq 0
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Keep the log where it can be read (on failure)
+        if: failure()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          files: build-log.txt
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
