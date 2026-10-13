@@ -27,6 +27,8 @@ Use `tar`, not electron-builder's zip target — macOS Archive Utility chokes on
 
 ## Install
 
+**Windows (x64):** download `StowPlan-Setup-Windows.exe` from the release (installer) or `StowPlan-Portable-Windows.exe` (no install, runs from anywhere). Unsigned, so SmartScreen may show "Windows protected your PC" → *More info* → *Run anyway*. Data lives in `Documents\StowPlan\stowplan-data.json`.
+
 Download the `.tar.gz` from the latest Release, then:
 
 ```bash
