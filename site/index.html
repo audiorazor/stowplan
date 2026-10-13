@@ -1144,7 +1144,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v110'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v111'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -2901,15 +2901,13 @@ function computeTray(){
   tray.h = free.length ? 104 : (dragging ? 64 : 28);
   const maxW = free.reduce((m,f)=>Math.max(m,f.item.W),0) || 100;
   tray.scale = Math.min(0.34, 66/maxW);
-  // identical cases (same size, name, colour, weight) stack into one tile with a ×N badge
-  let x = 12; const groups = []; const byKey = {};
-  free.forEach(f=>{
-    const cs = f.cs; const sig = [cs.libId, cs.name||'', cs.cardName||'', cs.color||'', typeof cs.weight==='number'?cs.weight:''].join('|');
-    if(byKey[sig]){ byKey[sig].keys.push(f.key); return; }
+  // every case gets its own tile, name and all — that's what the decisions are made on
+  let x = 12;
+  tray.items = free.map(f=>{
     const it = { key:f.key, keys:[f.key], item:f.item, l:f.item.L, w:f.item.W, h:f.item.H, y:0, rot:false, flip:false, manual:false, sx:x, sw:f.item.L*tray.scale, sh:f.item.W*tray.scale };
-    x += it.sw + 10; byKey[sig] = it; groups.push(it);
+    x += it.sw + 10; return it;
   });
-  tray.items = groups; tray.count = free.length;
+  tray.count = free.length;
   tray.contentW = x;
   tray.scroll = Math.max(0, Math.min(tray.scroll, tray.contentW - floorGeom.w + 12));
 }
@@ -2936,18 +2934,8 @@ function drawTray(){
   floorGeom = { scale: tray.scale, offX: -tray.scroll, offZ: r.y + 30, w: savedGeom.w, h: savedGeom.h };
   tray.items.forEach(it=>{
     if(it.sx - tray.scroll > r.w || it.sx - tray.scroll + it.sw < 0) return;
-    const inFlight = freeDrag && freeDrag.moved && it.keys.includes(freeDrag.key);
-    if(inFlight && it.keys.length===1) return;   // it's in flight
-    const left = it.keys.length - (inFlight ? 1 : 0);
-    const sel = it.keys.some(k=>isSelected(k));
-    // isSelected looks at the drawn key; borrow a selected one so the highlight shows
-    drawFloorBox(Object.assign({}, it, { key: sel ? it.keys.find(k=>isSelected(k)) : it.key, x: it.sx/tray.scale, z: 0 }), 1, null, undefined);
-    if(left > 1){
-      const bx = it.sx - tray.scroll + it.sw - 4, by = r.y + 30 + 4;
-      const label = '×'+left; fctx.font = '700 10px IBM Plex Sans, sans-serif'; const tw = fctx.measureText(label).width + 8;
-      fctx.fillStyle = '#1B1F23'; fctx.beginPath(); fctx.roundRect ? fctx.roundRect(bx - tw, by, tw, 14, 7) : fctx.rect(bx - tw, by, tw, 14); fctx.fill();
-      fctx.fillStyle = '#F5B700'; fctx.textAlign = 'center'; fctx.fillText(label, bx - tw/2, by + 10.5); fctx.textAlign = 'left';
-    }
+    if(freeDrag && freeDrag.moved && freeDrag.key===it.key) return;   // it's in flight
+    drawFloorBox(Object.assign({}, it, { x: it.sx/tray.scale, z: 0 }), 1, null, undefined);
   });
   packResult = savedPR; floorGeom = savedGeom;
   fctx.restore();
@@ -3568,9 +3556,7 @@ function handleFloorPointerDown(e){
     const it = trayItemAt(px, py);
     if(it){
       const additive = e.shiftKey || e.ctrlKey || e.metaKey;
-      const allSel = it.keys.every(k=>isSelected(k));
-      if(additive){ it.keys.forEach(k=>toggleInSelection(k, !allSel)); } else if(!allSel || state.selectedKeys.length<=it.keys.length) setSelection(it.keys.slice(), it.key); else state.selectedKey = it.key;
-      // dragging a stacked tile takes one case out of it
+      if(additive) toggleInSelection(it.key, !isSelected(it.key)); else if(!isSelected(it.key) || state.selectedKeys.length<=1) setSelection([it.key], it.key); else state.selectedKey = it.key;
       freeDrag = { key: it.key, item: it.item, fromTruckId: null, fromTray: true, offWx: it.item.L/2, offWz: it.item.W/2, wx: wx, wz: wy, moved:false, overBlock:null, overTray:true };
       renderFloor(); renderIso(); renderSelBar();
     } else {
@@ -4611,7 +4597,7 @@ function handleFloorContextMenu(e){
   if(py >= trayRect().y){
     const it = trayItemAt(px, py);
     if(!it) return;
-    if(!isSelected(it.key)) { setSelection(it.keys||[it.key], it.key); afterSelectionChange(); }
+    if(!isSelected(it.key)) { setSelection([it.key], it.key); afterSelectionChange(); }
     const ids = inspectedCases().map(c=>c.id);
     const t = activeTruck();
     openCtxMenu(e.clientX, e.clientY, caseDisplayName(caseById(it.key), libOf(caseById(it.key))) + (ids.length>1?` (+${ids.length-1})`:''), [
