@@ -206,28 +206,6 @@
   .ot-row .load-size{display:block;font-size:10px;color:var(--ink-soft);}
   .ot-names{font-size:11px;color:var(--ink-soft);margin-top:1px;}
 
-  .pool-row{display:grid;grid-template-columns:16px 18px 14px 1fr auto;gap:6px;align-items:center;padding:5px 4px;border-bottom:1px solid var(--line);font-size:12px;cursor:pointer;}
-  .pool-row.viewsel{ background:#FFF6D9; box-shadow:inset 3px 0 0 #F5B700; }
-  .pool-row:last-child{border-bottom:none;}
-  .pool-row:hover{background:#fff;}
-  .pool-row.sel{background:#FFF7DC;}
-  .pool-row .p-name{display:flex;flex-direction:column;min-width:0;}
-  .pool-row .p-name input{border:none;background:none;font:inherit;font-weight:600;padding:0;width:100%;min-width:0;}
-  .pool-row .p-name input:focus{outline:none;border-bottom:1px solid var(--steel);}
-  .pool-row .p-name input::placeholder{color:#9AA0A6;font-weight:400;}
-  .pool-row .p-sub{font-size:10px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .pool-row .p-name input.p-cardname{font-size:10px;font-weight:400;color:var(--ink-soft);}
-  .pool-row .p-name input.p-cardname::placeholder{color:#B7BBB6;}
-  .pool-row .p-truck{font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;white-space:nowrap;cursor:pointer;border:none;font-family:inherit;}
-  .pool-row .p-truck.out{border:1px dashed var(--ink-soft);}
-  .pool-row .p-truck.out:hover{border-color:var(--steel);color:var(--steel);background:#EEF2F5;}
-  .pool-row .p-truck.in{background:#E4EEE2;color:var(--go);}
-  .pool-row .p-truck.out{background:#EEE;color:var(--ink-soft);}
-  .pool-row .p-truck.here{background:var(--hazard);color:var(--ink);}
-  .pool-row .p-truck-sel{font-size:10px;font-weight:600;padding:1px 4px;border-radius:10px;white-space:nowrap;cursor:pointer;font-family:inherit;max-width:110px;}
-  .pool-row .p-truck-sel.in{background:#E4EEE2;color:var(--go);border:none;}
-  .pool-row .p-truck-sel.out{background:#EEE;color:var(--ink-soft);border:1px dashed var(--ink-soft);}
-  .pool-head{display:flex;align-items:center;gap:8px;padding:6px 4px 4px;font-family:'Oswald',sans-serif;font-weight:600;font-size:11px;letter-spacing:0.06em;text-transform:uppercase;color:var(--ink-soft);border-bottom:2px solid var(--line);margin-top:6px;}
 
   /* ---------- Layout grid ---------- */
   /* ---------- Layout grid ---------- */
@@ -902,8 +880,8 @@
   .panel-head h2{ font-size:14px; font-weight:500; letter-spacing:.05em; color:var(--ink); }
   .panel-body{ padding:14px 16px; }
   .hint{ font-size:12px; }
-  .cat-head, .pool-head, .other-truck .ot-head{ font-size:12px; letter-spacing:.05em; }
-  #poolAdd label, .adv-grid label, .modal label, .ph-head{ text-transform:none !important; letter-spacing:0 !important; font-size:11px !important; color:var(--ink-soft); }
+  .cat-head{ font-size:12px; letter-spacing:.05em; }
+  .adv-grid label, .modal label, .ph-head{ text-transform:none !important; letter-spacing:0 !important; font-size:11px !important; color:var(--ink-soft); }
   .wtile-unfit-label, .wtile-stage-label, .layer2-divider{ text-transform:none; letter-spacing:0; font-size:11px; font-weight:600; }
   .wtile-empty-hint .weh-title{ text-transform:none; letter-spacing:0; font-size:16px; }
   .pin-tag, .unplaced-tag, .pill, .status-pill, .stock-tag{ text-transform:none; letter-spacing:0; }
@@ -923,7 +901,7 @@
   .btn-quiet:hover, #clrSel:hover, #kbdClose:hover, [id^="cancel"]:hover, [id$="Cancel"]:hover, #backupLaterBtn:hover{ color:var(--ink) !important; background:rgba(27,31,35,.06) !important; }
   #resetManualBtn{ background:var(--hazard); border-color:var(--hazard); color:var(--ink); font-weight:600; }
   #resetManualBtn:hover{ background:#E0AC00; border-color:#E0AC00; }
-  #rmSelCase, #rmBar, [id^="confirm"], #f_delete, #poolDeleteBtn{ color:var(--stop) !important; border-color:var(--stop) !important; background:#fff !important; }
+  #rmSelCase, #rmBar, [id^="confirm"], #f_delete{ color:var(--stop) !important; border-color:var(--stop) !important; background:#fff !important; }
   [id^="confirm"]{ background:var(--stop) !important; color:#fff !important; }
   .icon-btn{ background:#fff; transition:border-color .12s ease, color .12s ease; }
   .topbar button{ transition:background .12s ease; }
@@ -935,6 +913,82 @@
   .toast.show{ transform:translateY(0); }
 
   @media (prefers-reduced-motion: reduce){ *, *::before, *::after{ transition-duration:0.01ms !important; animation-duration:0.01ms !important; } }
+
+  /* ============ Inventory panel (Cases | Catalog) ============ */
+  #invPanel{ overflow:hidden; }
+  .inv-tabs{ display:flex; border-bottom:1px solid var(--line); background:#fff; }
+  .inv-tab{ flex:1; text-align:center; padding:9px 8px; font-family:'Oswald',sans-serif; font-weight:500; letter-spacing:.05em; text-transform:uppercase; font-size:12.5px; color:var(--ink-soft); cursor:pointer; background:none; border:none; border-bottom:3px solid transparent; }
+  .inv-tab:hover{ color:var(--ink); }
+  .inv-tab.on{ color:var(--ink); border-bottom-color:var(--hazard); }
+  .inv-tab .n{ font-family:'IBM Plex Sans',sans-serif; font-weight:400; letter-spacing:0; text-transform:none; color:var(--ink-soft); margin-left:4px; }
+  .inv-tools{ display:flex; gap:6px; padding:8px 10px; border-bottom:1px solid var(--line); align-items:center; }
+  .inv-tools input[type=text]{ flex:1; min-width:0; padding:5px 8px; border:1px solid var(--line); border-radius:var(--radius); font-size:12px; background:#fff; height:var(--ctl-h); box-sizing:border-box; }
+  .inv-tools select{ height:var(--ctl-h); box-sizing:border-box; max-width:120px; }
+  .inv-strip{ display:flex; align-items:center; gap:6px; padding:5px 10px; font-size:11px; color:var(--ink-soft); border-bottom:1px solid var(--line); background:#FBFBF9; }
+  .inv-strip.has{ background:#FFF6D9; }
+  .inv-strip b{ color:var(--ink); }
+  .inv-strip button{ font:inherit; font-size:11px; padding:2px 7px; border:1px solid var(--line); background:#fff; border-radius:var(--radius); cursor:pointer; color:var(--ink-soft); }
+  .inv-strip button:hover{ border-color:var(--steel); color:var(--steel); }
+  .inv-strip .spacer{ flex:1; }
+  .inv-list{ max-height:min(52vh, 560px); overflow:auto; }
+  .inv-grp{ border-bottom:1px solid var(--line); }
+  .inv-grp:last-child{ border-bottom:none; }
+  .inv-gh{ display:flex; align-items:center; gap:7px; padding:7px 10px; cursor:pointer; background:#fff; user-select:none; }
+  .inv-gh:hover .inv-gn{ color:var(--steel); }
+  .inv-gh .caret{ width:10px; font-size:10px; color:var(--ink-soft); }
+  .inv-gn{ font-family:'Oswald',sans-serif; font-weight:600; font-size:13px; letter-spacing:.02em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .inv-gc{ color:var(--ink-soft); font-size:11px; margin-left:auto; white-space:nowrap; }
+  .inv-here{ font-size:10px; background:var(--hazard); color:var(--ink); padding:1px 6px; border-radius:10px; font-weight:600; flex-shrink:0; }
+  .inv-gh.drop-target{ background:#EEF2F5; box-shadow:inset 0 0 0 2px var(--steel); }
+  .inv-row{ display:grid; grid-template-columns:14px 16px 10px 1fr auto; grid-template-areas:"dh cb sw nm ch" "dh cb sw dm ch"; gap:1px 7px; align-items:center; padding:4px 10px; border-top:1px solid #E7E9E4; background:var(--panel); cursor:pointer; font-size:12px; }
+  .inv-row:hover{ background:#fff; }
+  .inv-row.sel{ background:#FFF7DC; }
+  .inv-row.primary{ box-shadow:inset 3px 0 0 var(--hazard); }
+  .inv-row .drag-handle{ grid-area:dh; font-size:12px; }
+  .inv-row input[type=checkbox]{ grid-area:cb; margin:0; }
+  .inv-row .sw{ grid-area:sw; width:10px; height:10px; border-radius:2px; border:1px solid rgba(0,0,0,.12); }
+  .inv-row .nm{ grid-area:nm; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .inv-row .nm.un{ color:#8A9096; font-weight:400; font-style:italic; }
+  .inv-row .dm{ grid-area:dm; font-size:10.5px; color:var(--ink-soft); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .inv-row .ch{ grid-area:ch; font-size:10px; color:var(--ink-soft); background:#EEF2F5; border:1px solid #D6DEE4; border-radius:10px; padding:0 6px; white-space:nowrap; }
+  .inv-row .ch.warn{ background:#FBF0D3; border-color:#E6C96A; color:#7A5A00; }
+  .inv-row .ch.stop{ background:#F9E3E1; border-color:#E5A39E; color:var(--stop); }
+  #gearList .gear-row{ padding:7px 10px; }
+  #gearList .cat-head{ padding-left:10px; padding-right:10px; }
+  .gear-inplan{ font-style:italic; color:#8A9096; }
+  .gear-add{ font-size:11px; padding:0 8px; height:24px; border:1px solid var(--hazard); background:var(--hazard); color:var(--ink); border-radius:var(--radius); font-weight:600; cursor:pointer; font-family:inherit; }
+  .gear-add:hover{ background:#E0AC00; border-color:#E0AC00; }
+
+  /* ============ Case Inspector ============ */
+  #inspPanel{ position:sticky; top:0; z-index:15; background:#fff; box-shadow:var(--shadow-1, 0 1px 2px rgba(27,31,35,.08)); max-height:100vh; display:flex; flex-direction:column; }
+  #inspPanel .panel-head{ border-bottom:2px solid var(--hazard); background:var(--panel); padding:8px 12px; gap:8px; flex-shrink:0; }
+  #inspPanel .panel-head h2{ display:flex; align-items:center; gap:8px; color:var(--ink); font-family:'Oswald',sans-serif; font-size:14px; letter-spacing:.02em; text-transform:none; white-space:nowrap; flex-shrink:0; max-width:60%; overflow:hidden; text-overflow:ellipsis; }
+  .insp-sw{ width:12px; height:12px; border-radius:2px; border:1px solid rgba(0,0,0,.12); flex-shrink:0; }
+  .insp-where{ font-size:11px; color:var(--ink-soft); text-align:right; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #inspBody{ padding:0; overflow-y:auto; }
+  .insp-f{ display:grid; grid-template-columns:84px 1fr; gap:2px 10px; align-items:center; padding:6px 12px; border-bottom:1px solid #EEEFEA; }
+  .insp-f > label{ font-size:11px; color:var(--ink-soft); }
+  .insp-f small{ grid-column:2; font-size:10.5px; color:#8A9096; }
+  .insp-f input[type=text], .insp-f input[type=number], .insp-f select{ width:100%; box-sizing:border-box; padding:4px 7px; border:1px solid var(--line); border-radius:var(--radius); font:inherit; font-size:12.5px; background:#fff; height:26px; }
+  .insp-f input.mono{ font-family:ui-monospace,Menlo,monospace; font-size:12px; }
+  .insp-f input.mixed::placeholder{ color:#8A9096; font-style:italic; }
+  .insp-row{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; min-width:0; }
+  .insp-row input[type=number]{ width:84px; }
+  .insp-unit{ color:var(--ink-soft); font-size:12px; }
+  .insp-chip{ font-size:10px; background:#EEF2F5; border:1px solid #D6DEE4; border-radius:10px; padding:1px 7px; white-space:nowrap; }
+  .insp-chip.warn{ background:#FBF0D3; border-color:#E6C96A; color:#7A5A00; }
+  .insp-lnk{ background:none; border:none; color:var(--steel); font:inherit; font-size:11.5px; padding:0; cursor:pointer; text-decoration:underline; }
+  .insp-lnk:hover{ color:var(--ink); }
+  #insp_sw{ gap:3px; }
+  .insp-f .sw{ width:16px; height:16px; }
+  .insp-f [data-sw-custom]{ width:20px !important; height:18px !important; }
+  .insp-toggles label{ display:inline-flex; align-items:center; gap:4px; font-size:12px; cursor:pointer; }
+  .insp-dim{ font-size:11px; color:var(--ink-soft); }
+  .insp-acts{ display:flex; gap:5px; padding:8px 12px; flex-wrap:wrap; }
+  .insp-acts .btn-ghost{ height:26px; padding:0 9px; font-size:12px; display:inline-flex; align-items:center; }
+  .insp-acts .danger{ color:var(--stop) !important; border-color:var(--stop) !important; margin-left:auto; }
+  .insp-empty{ padding:14px 12px; font-size:12px; color:var(--ink-soft); line-height:1.5; }
+  @media (max-width:900px){ #inspPanel{ position:static; max-height:none; } .inv-list{ max-height:50vh; } }
 </style>
 </head>
 <body>
@@ -986,61 +1040,36 @@
 
   <div class="layout">
     <div class="sidebar">
-      <div class="panel">
-        <div class="panel-head" id="gearLibHead" style="cursor:pointer;">
-          <h2 style="display:flex;align-items:center;gap:6px;"><span id="gearLibCaret">▾</span> Gear library</h2>
-          <span class="hint" id="gearLibCount"></span>
+      <div class="panel" id="invPanel">
+        <div class="inv-tabs">
+          <button class="inv-tab on" id="invTabCases" data-invtab="cases" title="Every case on this leg, grouped by truck">Cases<span class="n" id="invCasesCount"></span></button>
+          <button class="inv-tab" id="invTabCatalog" data-invtab="catalog" title="The sizes you can add — one entry per case type">Catalog<span class="n" id="invCatalogCount"></span></button>
         </div>
-        <div class="panel-body" id="gearLibBody">
-          <input type="text" id="gearFilter" placeholder="Filter: name, or a dimension like 125 or 45x76" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);font-size:12px;margin-bottom:8px;background:#fff;">
-          <div id="gearList"></div>
-          <div id="gearEmpty" class="empty-note" style="display:none;">No gear saved yet. Add an item below — it'll be here for every future load.</div>
-          <button class="btn-ghost" id="toggleAddForm" style="margin-top:8px;width:100%;">+ Add item to library</button>
+        <div id="invCases">
+          <div class="inv-tools">
+            <input type="text" id="invSearch" placeholder="Search name, size, truck, sheet…">
+            <select id="invTruckFilter" class="send-select"><option value="">All trucks</option></select>
+            <button class="btn-ghost ib" id="photoImportBtn" style="padding:0 8px;font-size:11px;white-space:nowrap;height:var(--ctl-h);" title="Photograph a printed truck pack, or import a PDF / pack file — cases land in their trucks"><span class="ib"></span>Import</button>
+          </div>
+          <div class="inv-strip" id="invStrip"><b id="invSelCount">0 selected</b><span class="spacer"></span><button id="invSelShown" title="Select every case currently listed">Select shown</button><button id="invSelNone">Clear</button></div>
+          <div id="invList" class="inv-list"></div>
+        </div>
+        <div id="invCatalog" style="display:none;">
+          <div class="inv-tools">
+            <input type="text" id="gearFilter" placeholder="Filter sizes: name, or 125 or 45x76">
+            <button class="btn-ghost btn-accent" id="toggleAddForm" style="height:var(--ctl-h);padding:0 10px;white-space:nowrap;">+ New size</button>
+          </div>
+          <div id="gearList" class="inv-list"></div>
+          <div id="gearEmpty" class="empty-note" style="display:none;margin:10px;">No sizes yet. Add one with <b>+ New size</b> — it'll be here for every future plan.</div>
         </div>
       </div>
 
-      <div class="panel">
-        <div class="panel-head" id="poolHead" style="cursor:pointer;">
-          <h2 style="display:flex;align-items:center;gap:6px;white-space:nowrap;" title="Every case on the tour, whichever truck it's in"><span id="poolCaret">▾</span> Pool</h2>
-          <span style="display:flex;align-items:center;gap:8px;min-width:0;"><span class="hint" id="poolTotals" style="white-space:nowrap;"></span><button class="btn-ghost ib" id="photoImportBtn" style="padding:3px 8px;font-size:11px;white-space:nowrap;" title="Photograph a printed truck pack, or import the PDF directly — cases land in the pool"><span class="ib"></span>Import</button></span>
+      <div class="panel" id="inspPanel">
+        <div class="panel-head">
+          <h2 id="inspTitle">Inspector</h2>
+          <span class="insp-where" id="inspWhere"></span>
         </div>
-        <div class="panel-body" id="poolBodyWrap">
-          <div id="poolAdd" style="display:grid;grid-template-columns:1fr 60px auto;gap:6px;align-items:end;margin-bottom:8px;">
-            <div><label style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);display:block;">Add cases</label><select id="poolAddLib" style="width:100%;padding:5px 6px;border:1px solid var(--line);border-radius:var(--radius);font-size:12px;background:#fff;"></select></div>
-            <div><label style="font-size:10px;text-transform:uppercase;letter-spacing:0.05em;color:var(--ink-soft);display:block;">Qty</label><input type="number" id="poolAddQty" value="1" min="1" style="width:100%;padding:5px;border:1px solid var(--line);border-radius:var(--radius);font-size:12px;"></div>
-            <button class="btn-ghost btn-accent" id="poolAddBtn" style="padding:6px 10px;">Add to pool</button>
-          </div>
-          <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;align-items:center;">
-            <input type="text" id="poolFilterText" placeholder="Filter: name, size, sheet…" style="flex:1;min-width:120px;padding:5px 8px;border:1px solid var(--line);border-radius:var(--radius);font-size:12px;background:#fff;">
-            <select id="poolFilterTruck" class="send-select" style="padding:5px;"><option value="">Any truck</option></select>
-            <label style="font-size:11px;color:var(--ink-soft);display:flex;align-items:center;gap:4px;"><input type="checkbox" id="poolFilterUnassigned"> unassigned only</label>
-          </div>
-          <div id="poolBulk" style="display:none;margin-bottom:6px;font-size:12px;align-items:center;gap:6px;flex-wrap:wrap;">
-            <b id="poolSelCount"></b>
-            <select id="poolAssignSel" class="send-select"><option value="">Assign to…</option></select>
-            <button class="btn-ghost" id="poolBatchNameBtn" style="padding:3px 8px;">Batch name…</button>
-            <button class="btn-ghost" id="poolUnassignBtn" style="padding:3px 8px;">Unassign</button>
-            <button class="btn-ghost" id="poolDeleteBtn" style="padding:3px 8px;color:var(--stop);border-color:var(--stop);">Delete</button>
-            <button class="btn-ghost" id="poolClearSelBtn" style="padding:3px 8px;">Clear</button>
-          </div>
-          <div id="poolList" style="max-height:340px;overflow:auto;"></div>
-        </div>
-      </div>
-
-      <div class="panel" id="currentLoadPanel" style="position:sticky;top:0;z-index:15;background:var(--panel);box-shadow:0 2px 6px rgba(0,0,0,0.06);max-height:100vh;display:flex;flex-direction:column;">
-        <div class="panel-head" style="flex-shrink:0;">
-          <h2 id="loadTitle">Current load</h2>
-          <span style="display:flex;align-items:center;gap:6px;">
-            <button class="btn-ghost" id="allLoadsBtn" style="padding:2px 8px;font-size:11px;" title="Show every truck's load here">All trucks</button>
-            <button class="icon-btn" id="clearLoadBtn" title="Empty this truck — every case goes back to the pool"></button>
-          </span>
-        </div>
-        <div class="panel-body" style="overflow-y:auto;">
-          <div id="allLoads" style="display:none;"></div>
-          <div id="loadList"></div>
-          <div id="loadEmpty" class="empty-note">Nothing in this truck. Assign cases from the pool, or hit + on a library size.</div>
-          <div id="unplacedSummary" style="margin-top:8px;"></div>
-        </div>
+        <div id="inspBody"><div class="insp-empty">Click a case on a truck, or tick cases in the list above, to see and edit its details here.</div></div>
       </div>
     </div>
 
@@ -1099,8 +1128,8 @@
 </div>
 
 <div class="jump-bar" id="jumpBar">
-  <button data-jump="gearLibHead" data-open="gear">Library</button>
-  <button data-jump="poolHead" data-open="pool">Pool</button>
+  <button data-jump="invPanel" data-open="cases">Cases</button>
+  <button data-jump="invPanel" data-open="catalog">Catalog</button>
   <button data-jump="truckControlsBar">Trucks</button>
   <button data-jump="metricsGrid">Weight</button>
 </div>
@@ -1129,7 +1158,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v105'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v106'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -1313,10 +1342,7 @@ let state = {
   selectedKeys: [],    // full selection (includes selectedKey)
   expanded: {},     // libId -> true when its case names are shown in the load list
   collapsed: {},    // category id -> true when folded in the gear library
-  gearLibCollapsed: false, // whole Gear library panel collapsed
-  poolCollapsed: false,    // whole Pool panel collapsed
   showFleetPlans: false,
-  showAllLoads: false,
   categories: null, // user-editable category list; null = use STOCK_CATEGORIES
   activeLayer: 'all',
   rotation: Math.PI/6, // azimuth
@@ -1580,15 +1606,11 @@ async function loadFromStorage(){
       state.collapsed = parsed.collapsed || {};
       state.autoStack = !!parsed.autoStack;
       state.showFleetPlans = !!parsed.showFleetPlans;
-      state.showAllLoads = !!parsed.showAllLoads;
       state.autoPlaceNew = parsed.autoPlaceNew!==false;
-      state.poolFilter = parsed.poolFilter || {};
-      state.gearLibCollapsed = !!parsed.gearLibCollapsed;
-      state.poolCollapsed = !!parsed.poolCollapsed;
       state.isoCollapsed = parsed.isoCollapsed === undefined ? true : !!parsed.isoCollapsed; // folded unless they've opened it
-    } else if(window.matchMedia && window.matchMedia('(max-width:900px)').matches){
-      // first run on a phone: start with the library and pool folded so the trucks aren't a long scroll away
-      state.gearLibCollapsed = true; state.poolCollapsed = true;
+      state.invTab = parsed.invTab==='catalog' ? 'catalog' : 'cases';
+      state.invFold = parsed.invFold || {};
+      state.invFilter = { truck: (parsed.invFilter||{}).truck||'' };
       if(Array.isArray(parsed.categories)){
         state.categories = parsed.categories.map(c=>Object.assign({maxStack:(STOCK_CATEGORIES.find(s=>s.id===c.id)||{}).maxStack||1}, c));
         const lift = state.categories.find(c=>c.id==='lift'); if(lift && lift.maxStack>1 && !parsed.liftStackSet) lift.maxStack = 1;
@@ -1622,10 +1644,6 @@ async function loadFromStorage(){
     hadConfig = !!cfg;
   }catch(e){ /* no data yet */ }
   if(!hadConfig) state.isoCollapsed = true; // first run: the isometric view starts folded away
-  if(!hadConfig && window.matchMedia && window.matchMedia('(max-width:900px)').matches){
-    // first run on a phone: start with the library and pool folded so the trucks aren't a long scroll away
-    state.gearLibCollapsed = true; state.poolCollapsed = true;
-  }
   state.gearLibrary = mergeStock(state.gearLibrary);
   ensureTabs();
 }
@@ -1647,7 +1665,7 @@ function persist(){
     try{ await store.set('gear-library', JSON.stringify(state.gearLibrary)); }catch(e){ ok = false; }
     try{
       await store.set('app-config', JSON.stringify({
-        units: state.units, tabs: state.tabs, activeTabId: state.activeTabId, projectName: state.projectName||'', collapsed: state.collapsed, categories: state.categories, autoStack: !!state.autoStack, showFleetPlans: !!state.showFleetPlans, showAllLoads: !!state.showAllLoads, autoPlaceNew: state.autoPlaceNew!==false, poolFilter: state.poolFilter||{}, gearLibCollapsed: !!state.gearLibCollapsed, poolCollapsed: !!state.poolCollapsed, isoCollapsed: !!state.isoCollapsed
+        units: state.units, tabs: state.tabs, activeTabId: state.activeTabId, projectName: state.projectName||'', collapsed: state.collapsed, categories: state.categories, autoStack: !!state.autoStack, showFleetPlans: !!state.showFleetPlans, autoPlaceNew: state.autoPlaceNew!==false, isoCollapsed: !!state.isoCollapsed, invTab: state.invTab||'cases', invFold: state.invFold||{}, invFilter: { truck: (state.invFilter||{}).truck||'' }
       }));
     }catch(e){ ok = false; }
     setSaveState(ok ? 'saved' : 'error');
@@ -2150,16 +2168,15 @@ function gearMatches(g, q){
   });
 }
 function renderGearLibrary(){
-  $('#gearLibBody').style.display = state.gearLibCollapsed ? 'none' : 'block';
-  $('#gearLibCaret').textContent = state.gearLibCollapsed ? '▸' : '▾';
-  $('#gearLibCount').textContent = state.gearLibCollapsed ? `${state.gearLibrary.length} item${state.gearLibrary.length!==1?'s':''}` : '';
-  if(state.gearLibCollapsed) return;
-  const list = $('#gearList');
+  const list = $('#gearList'); if(!list) return;
+  const cc = $('#invCatalogCount'); if(cc) cc.textContent = state.gearLibrary.length ? ` · ${state.gearLibrary.length}` : '';
   const units = state.units;
   const q = ($('#gearFilter').value||'').trim();
   list.innerHTML = '';
   if(state.gearLibrary.length===0){ $('#gearEmpty').style.display='block'; }
   else { $('#gearEmpty').style.display='none'; }
+  // how many cases of each size are on this leg — shown per row so you know what a catalog edit touches
+  gearUseCounts = {}; (state.pool||[]).forEach(cs=>{ gearUseCounts[cs.libId] = (gearUseCounts[cs.libId]||0)+1; });
   const ordered = state.gearLibrary.slice().sort((a,b)=> b.L - a.L);
   cats().forEach(cat=>{
     const items = ordered.filter(g=>catOf(g)===cat.id && gearMatches(g,q));
@@ -2189,13 +2206,14 @@ function renderGearRow(list, g, units){
     const hasRealName = c.id==='other' || (g.name && g.name!==catShort);
     // a generic item (name is just its category) is told apart by its size, so lead with that
     const primary = hasRealName ? `${esc(g.name)} <span class="stock-tag">${esc(c.short||c.label)}</span>` : `<span class="gear-size-lead">${dimsSorted(g, units)}</span> <span class="gear-short">${lenUnitLabel(units)}</span>`;
-    const secondary = hasRealName ? `${dimsSorted(g, units)} ${lenUnitLabel(units)} · ${fmt(kgToDisplay(g.weight,units),0)} ${wtUnitLabel(units)}` : `${esc(c.short||g.name)} · ${fmt(kgToDisplay(g.weight,units),0)} ${wtUnitLabel(units)}`;
+    const inPlan = gearUseCounts[g.id]||0;
+    const secondary = (hasRealName ? `${dimsSorted(g, units)} ${lenUnitLabel(units)} · ${fmt(kgToDisplay(g.weight,units),0)} ${wtUnitLabel(units)}` : `${esc(c.short||g.name)} · ${fmt(kgToDisplay(g.weight,units),0)} ${wtUnitLabel(units)}`) + (inPlan ? ` · <span class="gear-inplan" title="Cases of this size on this leg — editing the size changes all of them">${inPlan} in plan</span>` : '');
     row.innerHTML = `
       <span class="gear-swatch" style="background:${colorOf(g)}"></span>
       <span class="gear-name">${primary}${g.stock?' <span class="stock-tag stock-dim" title="Built-in size">stock</span>':''}</span>
       <span class="gear-dims">${secondary}${flags?`<span class="flag-ics">${flags}</span>`:''}</span>
       <span class="gear-actions">
-        <button class="icon-btn" data-add="${g.id}" title="Add one to the pool and into this truck">${ICON.plus}</button>
+        <button class="gear-add" data-add="${g.id}" title="Add cases of this size — pick how many and which truck">+ Add</button>
         <button class="icon-btn" data-edit="${g.id}" title="Edit size, weight or rules">${ICON.pencil}</button>
       </span>
     `;
@@ -2204,309 +2222,363 @@ function renderGearRow(list, g, units){
   wireGearRowButtons(list);
 }
 function wireGearRowButtons(list){
-  list.querySelectorAll('[data-add]').forEach(btn=>{
-    btn.onclick = ()=>{
-      const id = btn.getAttribute('data-add');
-      pushUndo('add case');
-      addCasesToPool(id, 1, { assignTo: state.activeTruckId });
-      persist(); recomputeAndRender();
-    };
-  });
+  list.querySelectorAll('[data-add]').forEach(btn=>{ btn.onclick = ()=>openAddCasesModal(btn.getAttribute('data-add')); });
   list.querySelectorAll('[data-edit]').forEach(btn=>{ btn.onclick = ()=>openGearFormModal(btn.getAttribute('data-edit')); });
+}
+let gearUseCounts = {};
+// the one way to add cases: how many, and into which truck (defaults to the one being edited)
+function openAddCasesModal(libId){
+  const g = state.gearLibrary.find(x=>x.id===libId); if(!g) return;
+  const u = state.units; const c = catById(catOf(g));
+  const back = openModal(`<h3>Add ${esc(c.short||g.name)} · ${dimsSorted(g,u,1)} ${lenUnitLabel(u)}</h3>
+    <div style="display:grid;grid-template-columns:80px 1fr;gap:8px;align-items:end;">
+      <div><label style="font-size:11px;color:var(--ink-soft);display:block;margin-bottom:2px;">How many</label><input type="number" id="ac_qty" value="1" min="1" max="200" style="width:100%;"></div>
+      <div><label style="font-size:11px;color:var(--ink-soft);display:block;margin-bottom:2px;">Into</label><select id="ac_truck" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;background:#fff;"><option value="">Unassigned (no truck yet)</option>${state.trucks.map(t=>`<option value="${t.id}" ${t.id===state.activeTruckId?'selected':''}>${esc(t.name)}</option>`).join('')}</select></div>
+    </div>
+    <div class="modal-row" style="margin-top:12px;"><button class="btn-ghost" id="ac_cancel">Cancel</button><button class="btn-block" id="ac_go" style="flex:0 0 auto;">Add</button></div>`);
+  const qty = back.querySelector('#ac_qty'), tr = back.querySelector('#ac_truck');
+  back.querySelector('#ac_cancel').onclick = ()=>back.remove();
+  const go = ()=>{
+    const n = Math.max(1, Math.min(200, parseInt(qty.value)||1)); const tid = tr.value;
+    back.remove();
+    pushUndo(`add ${n} case${n>1?'s':''}`);
+    let ids;
+    if(tid && tid!==state.activeTruckId){
+      ids = addCasesToPool(libId, n, {});
+      const { touched } = assignCasesWithOverflow(ids, tid);
+      persist(); recomputeAndRender();
+      const target = state.trucks.find(x=>x.id===tid);
+      showToast(touched.length>1 ? `Added ${n} — ${target.name} was full, so some spilled into a new truck` : `Added ${n} to ${target.name}`);
+    } else {
+      ids = addCasesToPool(libId, n, tid ? { assignTo: tid } : {});
+      persist(); recomputeAndRender();
+      showToast(tid ? `Added ${n} to ${activeTruck().name}` : `Added ${n} case${n>1?'s':''} — unassigned`);
+    }
+    // land in the Cases tab with the new cases selected, so naming them is one click away
+    state.invTab = 'cases'; setSelection(ids, ids[ids.length-1]); renderInventory(); renderFloor(); renderIso(); renderSelBar();
+  };
+  back.querySelector('#ac_go').onclick = go;
+  [qty, tr].forEach(el=>el.onkeydown = e=>{ e.stopPropagation(); if(e.key==='Enter') go(); if(e.key==='Escape') back.remove(); });
+  setTimeout(()=>{ qty.focus(); qty.select(); }, 30);
 }
 
 /* ============================================================
-   POOL — every case on the tour, with its truck
+   INVENTORY — every case on this leg, grouped by truck (Cases tab),
+   and the sizes you can add (Catalog tab). Replaces the old Gear
+   library / Pool / In-truck trio.
    ============================================================ */
-let poolSel = new Set();
-function poolFilterMatches(cs, g, q, truckId, unassignedOnly, tOf){
-  if(unassignedOnly && tOf) return false;
-  if(truckId && (!tOf || tOf.id!==truckId)) return false;
-  if(q){
-    const text = ((cs.name||'')+' '+(cs.source||'')+' '+(catById(catOf(g)).short||'')+' '+g.name+' '+(g.short||'')+' '+(tOf?tOf.name:'unassigned')).toLowerCase();
-    const tokens = q.toLowerCase().split(/[\s,x×]+/).filter(Boolean);
-    const dims = [cmToDisplay(g.L,state.units), cmToDisplay(g.W,state.units), cmToDisplay(g.H,state.units)];
-    return tokens.every(t=>{ const n=parseFloat(t); if(!isNaN(n) && /^[\d.]+$/.test(t)) return dims.some(d=>Math.abs(d-n)<=Math.max(0.6,n*0.01)); return text.includes(t); });
-  }
-  return true;
+function libOf(cs){ return cs && state.gearLibrary.find(x=>x.id===cs.libId); }
+function caseWeightKg(cs, g){ return typeof cs.weight==='number' ? cs.weight : (g ? g.weight : 0); }
+function caseDisplayName(cs, g){ const c = catById(catOf(g)); return cs.name || (c.short||g.name); }
+function ownerOf(id){ return state.trucks.find(t=>(t.cases||[]).includes(id)) || null; }
+function invCaseMatches(cs, g, t, q){
+  if(!q) return true;
+  const text = ((cs.name||'')+' '+(cs.cardName||'')+' '+(cs.source||'')+' '+(catById(catOf(g)).short||'')+' '+(catById(catOf(g)).label||'')+' '+g.name+' '+(g.short||'')+' '+(t?t.name:'unassigned')).toLowerCase();
+  const tokens = q.toLowerCase().split(/[\s,x×]+/).filter(Boolean);
+  const dims = [cmToDisplay(g.L,state.units), cmToDisplay(g.W,state.units), cmToDisplay(g.H,state.units)];
+  return tokens.every(tk=>{ const n=parseFloat(tk); if(!isNaN(n) && /^[\d.]+$/.test(tk)) return dims.some(d=>Math.abs(d-n)<=Math.max(0.6,n*0.01)); return text.includes(tk); });
 }
-function renderPool(){
-  const list = $('#poolList'); if(!list) return;
-  $('#poolBodyWrap').style.display = state.poolCollapsed ? 'none' : 'block';
-  $('#poolCaret').textContent = state.poolCollapsed ? '▸' : '▾';
+let invRowsShown = [];   // case ids currently listed, in order — for "Select shown"
+function renderInventory(){
+  const list = $('#invList'); if(!list) return;
   syncActiveTruck();
-  if(state.poolCollapsed){ $('#poolTotals').textContent = `${state.pool.length} case${state.pool.length!==1?'s':''} (collapsed)`; return; }
+  const tab = state.invTab==='catalog' ? 'catalog' : 'cases';
+  $('#invCases').style.display = tab==='cases' ? '' : 'none';
+  $('#invCatalog').style.display = tab==='catalog' ? '' : 'none';
+  $('#invTabCases').classList.toggle('on', tab==='cases');
+  $('#invTabCatalog').classList.toggle('on', tab==='catalog');
+  $('#invCasesCount').textContent = state.pool.length ? ` · ${state.pool.length}` : '';
+  $('#invCatalogCount').textContent = state.gearLibrary.length ? ` · ${state.gearLibrary.length}` : '';
+  if(tab==='catalog'){ renderGearLibrary(); return; }
   const u = state.units;
-  const f = state.poolFilter || (state.poolFilter = {});
+  const f = state.invFilter || (state.invFilter = {});
+  const fold = state.invFold || (state.invFold = {});
   // controls
-  const libSel = $('#poolAddLib');
-  const libOpts = state.gearLibrary.slice().sort((a,b)=>catOf(a).localeCompare(catOf(b)) || (b.L - a.L));
-  const curLib = libSel.value;
-  libSel.innerHTML = libOpts.map(g=>`<option value="${g.id}">${esc(catById(catOf(g)).short||g.name)}${g.short&&g.short.toLowerCase()!==(catById(catOf(g)).short||'').toLowerCase()?' · '+esc(g.short):''} — ${dimsSorted(g,u,1)}</option>`).join('');
-  if(curLib && libOpts.some(g=>g.id===curLib)) libSel.value = curLib;
-  const truckOpts = state.trucks.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
-  $('#poolFilterTruck').innerHTML = `<option value="">Any truck</option>${truckOpts}`; $('#poolFilterTruck').value = f.truck||'';
-  $('#poolFilterText').value = f.q||'';
-  $('#poolFilterUnassigned').checked = !!f.unassigned;
-  $('#poolAssignSel').innerHTML = `<option value="">Assign to…</option>${truckOpts}`;
-  // owner lookup
-  const owner = {}; state.trucks.forEach(t=>(t.cases||[]).forEach(id=>owner[id]=t));
-  const rows = state.pool.map(cs=>({cs, g: state.gearLibrary.find(x=>x.id===cs.libId), t: owner[cs.id]||null})).filter(r=>r.g && poolFilterMatches(r.cs, r.g, (f.q||'').trim(), f.truck||'', !!f.unassigned, r.t));
-  poolSel = new Set(Array.from(poolSel).filter(id=>state.pool.some(c=>c.id===id)));
-  const total = state.pool.length, unassigned = state.pool.filter(c=>!owner[c.id]).length;
-  const filterActive = !!((f.q||'').trim() || f.truck || f.unassigned);
-  $('#poolTotals').textContent = `${total} case${total!==1?'s':''} · ${unassigned} unassigned${rows.length!==total?` · showing ${rows.length}`:''}`;
-  // group by size type (sheet source shown per row)
-  const groups = {}; const order = [];
-  rows.forEach(r=>{ if(!groups[r.g.id]){ groups[r.g.id]=[]; order.push(r.g.id); } groups[r.g.id].push(r); });
-  order.sort((a,b)=>{ const ga=state.gearLibrary.find(x=>x.id===a), gb=state.gearLibrary.find(x=>x.id===b); return catOf(ga).localeCompare(catOf(gb)) || (gb.L*gb.W*gb.H - ga.L*ga.W*ga.H); });
-  list.innerHTML = order.map(libId=>{
-    const g = state.gearLibrary.find(x=>x.id===libId); const c = catById(catOf(g));
-    const base = (c.id==='other'||(g.name&&g.name!==(c.short||'').toUpperCase()))?g.name:c.short;
-    const grp = groups[libId];
-    const allSel = grp.every(r=>poolSel.has(r.cs.id));
-    return `<div class="pool-head"><input type="checkbox" data-grp-sel="${libId}" ${allSel?'checked':''} title="Select all of this size"><span>${esc(base)}${g.short&&g.short.toLowerCase()!==(c.short||'').toLowerCase()?' · '+esc(g.short):''}</span><span class="count" style="font-family:'IBM Plex Sans';font-weight:400;text-transform:none;letter-spacing:0;">${dimsSorted(g,u,1)} ${lenUnitLabel(u)} · ${grp.length}</span></div>` +
-      grp.map(({cs,t})=>`<div class="pool-row ${poolSel.has(cs.id)?'sel':''} ${cs.id===state.selectedKey?'viewsel':''}" data-case="${cs.id}">
-        <span class="drag-handle" data-drag="${cs.id}" title="Drag onto a truck to assign it there">⠿</span>
-        <input type="checkbox" data-sel="${cs.id}" ${poolSel.has(cs.id)?'checked':''}>
-        <button class="unit-color" data-pcolor="${cs.id}" style="background:${cs.color||colorOf(g)}" title="Color"></button>
-        <span class="p-name" title="${typeof cs.weight==='number'?fmt(kgToDisplay(cs.weight,u),0)+' '+wtUnitLabel(u):fmt(kgToDisplay(g.weight,u),0)+' '+wtUnitLabel(u)}${cs.source?' · from sheet: '+esc(cs.source):''}">
-          <input type="text" data-pname="${cs.id}" value="${(cs.name||'').replace(/"/g,'&quot;')}" placeholder="unnamed ${esc(c.short||g.name).toLowerCase()}" title="Name shown on the truck pack">
-          <input type="text" class="p-cardname" data-pcard="${cs.id}" value="${(cs.cardName||'').replace(/"/g,'&quot;')}" placeholder="short name for the print sheet" title="Name shown on the smaller print sheet / manifest — leave blank to use the size's short label">
-        </span>
-        <select class="p-truck-sel ${t?'in':'out'}" data-rowassign="${cs.id}" title="${t?'Reassign to a different truck':'Assign to a truck'}">
-          <option value="" ${!t?'selected':''}>${t?'Unassign':'+ assign…'}</option>
-          ${state.trucks.map(tt=>`<option value="${tt.id}" ${t&&t.id===tt.id?'selected':''}>${esc(tt.name)}</option>`).join('')}
-        </select>
-      </div>`).join('');
-  }).join('') || (total>0 && filterActive
-      ? `<div class="empty-note">${total} case${total!==1?'s':''} in the pool, but none match your filter. <button class="btn-ghost" id="poolClearFilters" style="padding:2px 8px;margin-left:4px;">Clear filters</button></div>`
-      : '<div class="empty-note">No cases match. Add some above, or import a photo.</div>');
+  const tf = $('#invTruckFilter');
+  tf.innerHTML = `<option value="">All trucks</option><option value="_none">Unassigned</option>` + state.trucks.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
+  if(f.truck && f.truck!=='_none' && !state.trucks.some(t=>t.id===f.truck)) f.truck = '';
+  tf.value = f.truck||'';
+  const si = $('#invSearch'); if(document.activeElement!==si) si.value = f.q||'';
+  const q = (f.q||'').trim();
+  // groups: Unassigned first, then every truck in order
+  const groups = [{ id:'_none', name:'Unassigned', t:null, rows:[] }].concat(state.trucks.map(t=>({ id:t.id, name:t.name, t, rows:[] })));
+  const byId = {}; groups.forEach(gr=>byId[gr.id]=gr);
+  const owned = new Set();
+  state.trucks.forEach(t=>(t.cases||[]).forEach(id=>{ owned.add(id); const cs=caseById(id); const g=libOf(cs); if(cs && g && invCaseMatches(cs,g,t,q)) byId[t.id].rows.push({cs,g,t}); }));
+  state.pool.forEach(cs=>{ if(owned.has(cs.id)) return; const g=libOf(cs); if(g && invCaseMatches(cs,g,null,q)) byId._none.rows.push({cs,g,t:null}); });
+  const visible = groups.filter(gr=>{
+    if(f.truck) return gr.id===f.truck;
+    if(gr.id==='_none') return gr.rows.length>0;
+    return !q || gr.rows.length>0;
+  });
+  invRowsShown = [];
+  const selSet = new Set(state.selectedKeys||[]);
+  const shownTotal = visible.reduce((s,gr)=>s+gr.rows.length,0);
+  list.innerHTML = visible.map(gr=>{
+    const isActive = gr.t && gr.t.id===state.activeTruckId;
+    const open = q || f.truck ? true : (fold[gr.id]===undefined ? (isActive || gr.id==='_none') : !fold[gr.id]);
+    const wt = gr.rows.reduce((s,r)=>s+caseWeightKg(r.cs,r.g),0);
+    const s = gr.t ? fleetCache[gr.t.id] : null;
+    const unfit = s ? s.unplaced : 0;
+    const meta = `${gr.rows.length} case${gr.rows.length!==1?'s':''}${wt?` · ${fmt(kgToDisplay(wt,u),0)} ${wtUnitLabel(u)}`:''}${unfit?` · <span style="color:var(--stop)">${unfit} unfit</span>`:''}`;
+    // where each case sits in its truck — row number, pinned, waiting, unfit
+    let whereOf = {};
+    if(gr.t && s){
+      const pr = isActive ? packResult : s.pr;
+      let rowN = {}; try{ rowsForPack(pr).forEach(r=>r.boxes.forEach(b=>rowN[b.key]=r.n)); }catch(e){}
+      pr.placed.forEach(b=>{ if(!b.isBar) whereOf[b.key] = { txt:`row ${rowN[b.key]||'–'}${b.manual?' · pin':''}`, cls:'' }; });
+      pr.unplaced.forEach(x=>{ whereOf[x.key] = { txt:'unfit', cls:'stop' }; });
+      (pr.staged||[]).forEach(x=>{ whereOf[x.key] = { txt:'waiting', cls:'warn' }; });
+    }
+    const rows = !open ? '' : gr.rows.map(({cs,g,t})=>{
+      invRowsShown.push(cs.id);
+      const c = catById(catOf(g));
+      const w = whereOf[cs.id];
+      const sel = selSet.has(cs.id);
+      return `<div class="inv-row ${sel?'sel':''} ${cs.id===state.selectedKey?'primary':''}" data-case="${cs.id}" title="${cs.source?'From sheet: '+esc(cs.source):''}">
+        <span class="drag-handle" data-drag="${cs.id}" title="Drag onto a truck to put it there">⠿</span>
+        <input type="checkbox" data-sel="${cs.id}" ${sel?'checked':''} title="Tick several to edit them together">
+        <span class="sw" style="background:${cs.color||colorOf(g)}"></span>
+        <span class="nm ${cs.name?'':'un'}">${esc(cs.name || (c.short||g.name))}</span>
+        <span class="dm">${dimsSorted(g,u,1)} ${lenUnitLabel(u)} · ${fmt(kgToDisplay(caseWeightKg(cs,g),u),0)} ${wtUnitLabel(u)}${cs.name?' · '+esc(c.short||c.label):''}</span>
+        ${w ? `<span class="ch ${w.cls}">${w.txt}</span>` : ''}
+      </div>`;
+    }).join('');
+    return `<div class="inv-grp" data-grp="${gr.id}">
+      <div class="inv-gh" data-fold="${gr.id}"><span class="caret">${open?'▾':'▸'}</span><span class="inv-gn" title="${esc(gr.name)}">${esc(gr.name)}</span>${isActive?'<span class="inv-here" title="This is the truck you\'re editing">editing</span>':''}<span class="inv-gc">${meta}</span></div>
+      ${rows}
+    </div>`;
+  }).join('') || (state.pool.length
+      ? `<div class="empty-note" style="margin:10px;">${state.pool.length} case${state.pool.length!==1?'s':''} on this leg, none match. <button class="btn-ghost" id="invClearFilters" style="padding:2px 8px;margin-left:4px;">Clear search</button></div>`
+      : '<div class="empty-note" style="margin:10px;">No cases yet. Open <b>Catalog</b> and hit <b>+ Add</b> on a size, or <b>Import</b> a truck pack.</div>');
+  const cf = $('#invClearFilters'); if(cf) cf.onclick = ()=>{ state.invFilter = {}; persist(); renderInventory(); };
   // wiring
-  const clearFiltersBtn = $('#poolClearFilters');
-  if(clearFiltersBtn) clearFiltersBtn.onclick = ()=>{
-    state.poolFilter = {};
-    persist(); renderPool();
-    showToast('Filters cleared');
-  };
+  list.querySelectorAll('[data-fold]').forEach(h=>{ h.onclick = ()=>{ const id=h.getAttribute('data-fold'); const isActive = id===state.activeTruckId; const cur = fold[id]===undefined ? !(isActive || id==='_none') : fold[id]; fold[id] = !cur; persist(); renderInventory(); }; });
   list.querySelectorAll('[data-drag]').forEach(h=>{
     h.addEventListener('pointerdown', e=>{
-      e.preventDefault();
-      const id = h.getAttribute('data-drag'); const cs = caseById(id); const g = state.gearLibrary.find(x=>x.id===cs.libId);
-      startTileDrag(id, null, e.clientX, e.clientY, cs.name || (catById(catOf(g)).short||g.name));
+      e.preventDefault(); e.stopPropagation();
+      const id = h.getAttribute('data-drag'); const cs = caseById(id); const g = libOf(cs); const t = ownerOf(id);
+      startTileDrag(id, t ? t.id : null, e.clientX, e.clientY, caseDisplayName(cs,g));
     });
   });
-  list.querySelectorAll('[data-sel]').forEach(cb=>{ cb.onchange = ()=>{ const id=cb.getAttribute('data-sel'); if(cb.checked) poolSel.add(id); else poolSel.delete(id); renderPool(); }; });
-  list.querySelectorAll('[data-grp-sel]').forEach(cb=>{ cb.onchange = ()=>{ const libId=cb.getAttribute('data-grp-sel'); groups[libId].forEach(r=>{ if(cb.checked) poolSel.add(r.cs.id); else poolSel.delete(r.cs.id); }); renderPool(); }; });
-  list.querySelectorAll('[data-pcolor]').forEach(b=>{ b.onclick = ()=>openColorPop(b, [b.getAttribute('data-pcolor')]); });
-  list.querySelectorAll('.pool-row').forEach(row=>{
+  list.querySelectorAll('[data-sel]').forEach(cb=>{
+    cb.onclick = e=>e.stopPropagation();
+    cb.onchange = ()=>{ const id=cb.getAttribute('data-sel'); toggleInSelection(id, cb.checked); afterSelectionChange(); };
+  });
+  list.querySelectorAll('.inv-row').forEach(row=>{
     row.addEventListener('click', e=>{
       if(e.target.closest('input,button,select,.drag-handle')) return;
       const id = row.getAttribute('data-case');
+      if(e.shiftKey || e.metaKey || e.ctrlKey){ toggleInSelection(id, !state.selectedKeys.includes(id)); afterSelectionChange(); return; }
+      const t = ownerOf(id);
+      if(t && t.id!==state.activeTruckId) switchTruck(t.id);   // editing follows the case
       setSelection([id], id);
-      redrawAllFloorCanvases();
-      syncPoolSelectionHighlight();
-      renderSelBar();
+      afterSelectionChange();
     });
   });
-  list.querySelectorAll('[data-rowassign]').forEach(sel=>{
-    sel.onchange = ()=>{
-      const caseId = sel.getAttribute('data-rowassign');
-      const tid = sel.value;
-      pushUndo(tid ? 'assign case' : 'unassign case');
-      if(!tid){ assignCases([caseId], null); persist(); recomputeAndRender(); showToast('Unassigned'); return; }
-      const { touched } = assignCasesWithOverflow([caseId], tid);
-      persist(); recomputeAndRender();
-      const target = state.trucks.find(x=>x.id===tid);
-      const overweight = overweightTrucks(touched);
-      const spillNote = touched.length>1 ? `${target.name} was full — spilled over into a new truck. ` : '';
-      const weightNote = overweight.length ? `Now over: ${overweight.join(', ')}.` : '';
-      showToast(spillNote || weightNote ? (spillNote+weightNote).trim() : `Assigned to ${target.name}`);
-    };
-  });
-  list.querySelectorAll('[data-pname]').forEach(inp=>{
-    const id = inp.getAttribute('data-pname');
-    inp.onchange = ()=>{ const cs = caseById(id); if(!cs) return; const v = inp.value.trim(); if(v===(cs.name||'')) return; pushUndo('label'); if(v) cs.name=v; else delete cs.name; persist(); renderLoadList(); renderAllLoads(); renderFloor(); renderIso(); renderSelBar(); };
-    inp.onkeydown = e=>{ e.stopPropagation(); if(e.key==='Enter'){ const all=Array.from(list.querySelectorAll('[data-pname]')); const i=all.indexOf(inp); if(all[i+1]) all[i+1].focus(); else inp.blur(); } };
-  });
-  list.querySelectorAll('[data-pcard]').forEach(inp=>{
-    const id = inp.getAttribute('data-pcard');
-    inp.onchange = ()=>{ const cs = caseById(id); if(!cs) return; const v = inp.value.trim(); if(v===(cs.cardName||'')) return; pushUndo('print sheet name'); if(v) cs.cardName=v; else delete cs.cardName; persist(); };
-    inp.onkeydown = e=>{ e.stopPropagation(); if(e.key==='Enter') inp.blur(); };
-  });
-  const bulk = $('#poolBulk');
-  bulk.style.display = poolSel.size ? 'flex' : 'none';
-  $('#poolSelCount').textContent = `${poolSel.size} selected`;
+  syncInventorySelection(shownTotal);
 }
-function wirePool(){
-  $('#poolHead').onclick = (e)=>{ if(e.target.closest('input,button,select')) return; state.poolCollapsed = !state.poolCollapsed; persist(); renderPool(); };
-  $('#poolAddBtn').onclick = ()=>{
-    const libId = $('#poolAddLib').value; const n = Math.max(1, Math.min(200, parseInt($('#poolAddQty').value)||1));
-    if(!libId) return;
-    pushUndo(`add ${n} to pool`);
-    const ids = addCasesToPool(libId, n, {});
-    persist(); recomputeAndRender();
-    showToast(`Added ${n} case${n>1?'s':''} to the pool`);
-    // put the cursor on the first new name field
-    const first = $(`[data-pname="${ids[0]}"]`); if(first){ first.focus(); }
+function toggleInSelection(id, on){
+  const keys = state.selectedKeys.filter(k=>k!==id);
+  if(on) keys.push(id);
+  setSelection(keys, on ? id : (keys[keys.length-1]||null));
+}
+function afterSelectionChange(){ renderFloor(); renderIso(); renderSelBar(); }
+let invLastPrimary = null;
+// cheap: updates highlight + checkboxes on already-rendered rows to match the selection
+function syncInventorySelection(shownTotal){
+  const list = $('#invList'); if(!list) return;
+  const selSet = new Set(state.selectedKeys||[]);
+  list.querySelectorAll('.inv-row').forEach(r=>{
+    const id = r.getAttribute('data-case');
+    r.classList.toggle('sel', selSet.has(id));
+    r.classList.toggle('primary', id===state.selectedKey);
+    const cb = r.querySelector('[data-sel]'); if(cb) cb.checked = selSet.has(id);
+  });
+  const n = (state.selectedKeys||[]).filter(k=>caseById(k)).length;
+  const strip = $('#invStrip'); if(strip){ strip.classList.toggle('has', n>0); $('#invSelCount').textContent = n ? `${n} selected` : (shownTotal!==undefined ? `${shownTotal} shown` : ''); }
+  if(state.selectedKey && state.selectedKey!==invLastPrimary){
+    const row = list.querySelector(`.inv-row[data-case="${state.selectedKey}"]`);
+    if(row && row.scrollIntoView) row.scrollIntoView({ block:'nearest' });
+  }
+  invLastPrimary = state.selectedKey;
+}
+function syncPoolSelectionHighlight(){ syncInventorySelection(); }
+function wireInventory(){
+  document.querySelectorAll('[data-invtab]').forEach(b=>{ b.onclick = ()=>{ state.invTab = b.getAttribute('data-invtab'); persist(); renderInventory(); }; });
+  const si = $('#invSearch');
+  si.oninput = ()=>{ (state.invFilter||(state.invFilter={})).q = si.value; renderInventory(); };
+  si.onkeydown = e=>{ e.stopPropagation(); if(e.key==='Escape'){ si.value=''; state.invFilter.q=''; renderInventory(); } };
+  $('#invTruckFilter').onchange = ()=>{ (state.invFilter||(state.invFilter={})).truck = $('#invTruckFilter').value; persist(); renderInventory(); };
+  $('#invSelShown').onclick = ()=>{ setSelection(invRowsShown.slice(), invRowsShown[invRowsShown.length-1]||null); afterSelectionChange(); };
+  $('#invSelNone').onclick = ()=>{ clearSelection(); afterSelectionChange(); };
+}
+// the old panels are gone — their render entry points now all land here
+function renderPool(){ renderInventory(); }
+function renderLoadList(){ renderInventory(); }
+function renderAllLoads(){}
+function wirePool(){ wireInventory(); }
+
+/* ============================================================
+   CASE INSPECTOR — every detail of whatever is selected, editable
+   in place. One case or many; a field that differs reads "mixed".
+   ============================================================ */
+let inspRefocus = null;
+function inspectedCases(){ return (state.selectedKeys||[]).filter(k=>!String(k).startsWith('bar:')).map(caseById).filter(Boolean); }
+function renderInspector(){
+  const body = $('#inspBody'); if(!body) return;
+  const title = $('#inspTitle'), where = $('#inspWhere');
+  const u = state.units;
+  const cases = inspectedCases();
+  const bars = selectedBoxes().filter(b=>b.isBar);
+  if(!cases.length && bars.length){
+    const bw = barWordFor(state.containerKey); const b = bars[0];
+    title.innerHTML = `<span class="insp-sw" style="background:#1B1F23"></span>${bars.length>1?bars.length+' '+bw+'s':(bw==='strap'?'Strap':'Load bar')}`;
+    where.textContent = bars.length===1 ? `${fmt(cmToDisplay(b.x,u),0)} ${lenUnitLabel(u)} from nose · ${fmt(kgToDisplay(BAR_WEIGHT,u),0)} ${wtUnitLabel(u)}` : '';
+    body.innerHTML = `<div class="insp-acts"><button class="btn-ghost danger" id="insp_rmbar">Remove ${bars.length>1?'all':bw}</button></div>`;
+    $('#insp_rmbar').onclick = ()=>{ pushUndo(bars.length>1?'remove load bars':'remove load bar'); state.loadBars = state.loadBars.filter(x=>!bars.some(bb=>bb.key==='bar:'+x.id)); clearSelection(); persist(); recomputeAndRender(); };
+    return;
+  }
+  if(!cases.length){
+    title.textContent = 'Inspector'; where.textContent = '';
+    body.innerHTML = '<div class="insp-empty">Click a case on a truck, or tick cases in the list above, to see and edit its details here.<br><span style="color:#8A9096">Shift-click or lasso for several · <b>?</b> for shortcuts</span></div>';
+    return;
+  }
+  const ids = cases.map(cs=>cs.id);
+  const libs = cases.map(cs=>libOf(cs));
+  const boxes = selectedBoxes().filter(b=>!b.isBar);   // the ones placed in the truck being edited
+  const boxOf = {}; boxes.forEach(b=>boxOf[b.key]=b);
+  const same = arr => arr.every(v=>v===arr[0]);
+  const names = cases.map(cs=>cs.name||''), cards = cases.map(cs=>cs.cardName||'');
+  const owners = cases.map(cs=>ownerOf(cs.id));
+  const ownerIds = owners.map(t=>t?t.id:'');
+  const colors = cases.map((cs,i)=>cs.color||colorOf(libs[i]));
+  const one = cases.length===1;
+  // header
+  const swatch = same(colors) ? colors[0] : `linear-gradient(90deg,${Array.from(new Set(colors)).slice(0,4).join(',')})`;
+  title.innerHTML = `<span class="insp-sw" style="background:${swatch}"></span>${one ? esc(caseDisplayName(cases[0],libs[0])) : cases.length+' cases'}`;
+  if(one){
+    const b = boxOf[ids[0]]; const t = owners[0];
+    const bits = [t ? t.name : 'Unassigned'];
+    if(b){ bits.push(`row ${rowNumberOf(b)}`); bits.push(`level ${levelOf(b)+1}`); bits.push(b.manual ? 'pinned' : 'auto'); }
+    else if(t && t.id===state.activeTruckId){ bits.push(state.staged[ids[0]] ? 'waiting in tray' : "doesn't fit"); }
+    where.textContent = bits.join(' · ');
+  } else {
+    const kinds = {}; cases.forEach((cs,i)=>{ const k = caseDisplayName(cs,libs[i]); kinds[k]=(kinds[k]||0)+1; });
+    const kk = Object.keys(kinds); const trucks = new Set(ownerIds);
+    where.textContent = kk.slice(0,2).map(k=>`${kinds[k]>1?kinds[k]+' ':''}${k}`).join(' · ') + (kk.length>2?' · …':'') + (trucks.size>1 ? ` · across ${trucks.size} truck${trucks.size>1?'s':''}` : '');
+  }
+  // size summary
+  const sizeHTML = (()=>{
+    if(same(libs.map(g=>g.id))){
+      const g = libs[0]; const c = catById(catOf(g));
+      return `<b>${dimsSorted(g,u,1)} ${lenUnitLabel(u)}</b> <span class="insp-chip">${esc(c.short||c.label)}${g.name && g.name!==(c.short||'').toUpperCase() && c.id!=='other' ? ' · '+esc(g.name) : (c.id==='other' ? ' · '+esc(g.name) : '')}</span><button class="insp-lnk" id="insp_chg">Change size…</button><button class="insp-lnk" id="insp_editlib" title="Edit this catalog entry — changes every case of this size">catalog</button>`;
+    }
+    const counts = {}; libs.forEach(g=>{ const k = `${catById(catOf(g)).short||g.name} ${dimsSorted(g,u,1)}`; counts[k]=(counts[k]||0)+1; });
+    return `<b>${Object.keys(counts).length} sizes</b> ${Object.keys(counts).slice(0,3).map(k=>`<span class="insp-chip">${esc(k)} ×${counts[k]}</span>`).join('')}${Object.keys(counts).length>3?'…':''}<button class="insp-lnk" id="insp_chg">Change size…</button>`;
+  })();
+  // weight
+  const catWts = libs.map(g=>g.weight);
+  const wts = cases.map((cs,i)=>caseWeightKg(cs,libs[i]));
+  const anyOverride = cases.some(cs=>typeof cs.weight==='number');
+  const wtVal = same(wts) ? fmt(kgToDisplay(wts[0],u),0).replace(/,/g,'') : '';
+  const totalWt = wts.reduce((s,x)=>s+x,0);
+  // placement
+  const anyManual = boxes.some(b=>b.manual), allManual = boxes.length && boxes.every(b=>b.manual);
+  const allRot = boxes.length && boxes.every(b=>b.rot);
+  const oneStack = boxes.length>1 && boxes.length===cases.length && stackMembers(boxes[0]).length===boxes.length && boxes.every(x=>stackMembers(x).length===boxes.length);
+  const top = oneStack ? stackMembers(boxes[0])[boxes.length-1] : null;
+  const b1 = one ? boxOf[ids[0]] : null;
+  const posTxt = b1 ? `${fmt(cmToDisplay(b1.x+(state.clearance||0)/2,u),0)} ${lenUnitLabel(u)} from nose · ${fmt(cmToDisplay(b1.z+(state.clearance||0)/2,u),0)} ${lenUnitLabel(u)} from side${b1.manual && b1.support<0.8 && b1.y>EPS ? ` · <span class="unplaced-tag">${fmt(b1.support*100,0)}% supported</span>` : ''}` : (boxes.length ? `${boxes.length} of ${cases.length} on this truck's floor plan` : '');
+  const truckMixed = !same(ownerIds);
+  body.innerHTML = `
+    <div class="insp-f"><label for="insp_name">Name</label><input type="text" id="insp_name" class="${!same(names)?'mixed':''}" value="${same(names)?names[0].replace(/"/g,'&quot;'):''}" placeholder="${!same(names)?'mixed — type to rename all '+cases.length:(one?'add a name':'name all '+cases.length)}"><small>shows on the floor plan and pocket card${cases.length>1?' · <button class="insp-lnk" id="insp_number">number them…</button>':''}</small></div>
+    <div class="insp-f"><label for="insp_card">Print short-name</label><input type="text" id="insp_card" class="mono ${!same(cards)?'mixed':''}" value="${same(cards)?cards[0].replace(/"/g,'&quot;'):''}" placeholder="${!same(cards)?'mixed':'optional — label sheets only'}"></div>
+    <div class="insp-f"><label>Size</label><div class="insp-row">${sizeHTML}</div></div>
+    <div class="insp-f"><label for="insp_wt">Weight</label><div class="insp-row"><input type="number" id="insp_wt" step="any" class="${!same(wts)?'mixed':''}" value="${wtVal}" placeholder="${!same(wts)?'mixed':''}"><span class="insp-unit">${wtUnitLabel(u)}</span>${anyOverride?`<span class="insp-chip warn" title="This case's weight differs from its catalog entry">override</span><button class="insp-lnk" id="insp_wtcat">use catalog${same(catWts)?' '+fmt(kgToDisplay(catWts[0],u),0):''}</button>`:''}</div>${cases.length>1?`<small>type a value to set all ${cases.length} · total ${fmt(kgToDisplay(totalWt,u),0)} ${wtUnitLabel(u)}</small>`:''}</div>
+    <div class="insp-f"><label>Colour</label><div class="insp-row" id="insp_sw">${swatchPickerHTML(same(cases.map(cs=>cs.color||null)) ? (cases[0].color||null) : null, same(libs.map(g=>colorOf(g))) ? colorOf(libs[0]) : '#999')}</div></div>
+    <div class="insp-f"><label for="insp_truck">Truck</label><select id="insp_truck">${truckMixed?'<option value="_mixed" selected>mixed</option>':''}<option value="" ${!truckMixed&&!ownerIds[0]?'selected':''}>Unassigned</option>${state.trucks.map(t=>`<option value="${t.id}" ${!truckMixed&&ownerIds[0]===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></div>
+    ${boxes.length ? `<div class="insp-f"><label>Placement</label><div class="insp-row insp-toggles"><label title="Pinned cases stay put; the auto-packer builds walls around them"><input type="checkbox" id="insp_pin" ${allManual?'checked':''}> Pinned${boxes.length>1&&anyManual&&!allManual?` <small style="grid-column:auto">(${boxes.filter(b=>b.manual).length} of ${boxes.length})</small>`:''}</label><label title="Turned 90° on the floor (R)"><input type="checkbox" id="insp_rot" ${allRot?'checked':''}> Rotated 90°</label></div>${posTxt?`<small class="insp-dim">${posTxt}</small>`:''}</div>` : ''}
+    <div class="insp-acts">
+      ${boxes.length ? `<button class="btn-ghost" id="insp_rotate" title="Turn 90° (R)">Rotate${boxes.length>1?' all':''}</button>` : ''}
+      ${boxes.some(b=>b.item.shape==='trapezoid') ? '<button class="btn-ghost" id="insp_flip" title="Turn end-for-end, 180° (F)">Flip 180°</button>' : ''}
+      ${b1 && b1.y>EPS ? '<button class="btn-ghost" id="insp_unstack" title="Move it down onto the floor (U)">Unstack</button>' : ''}
+      ${oneStack ? '<button class="btn-ghost" id="insp_unstacktop" title="Move the top case down onto the floor (U)">Unstack top</button><button class="btn-ghost" id="insp_picktop" title="Select just the top case">Pick top</button>' : ''}
+      <button class="btn-ghost" id="insp_dup" title="Add another just like it (Ctrl/Cmd+D)">Duplicate</button>
+      ${anyManual ? '<button class="btn-ghost" id="insp_release" title="Unpin and let the packer place it">Auto-place</button>' : ''}
+      ${ownerIds.some(Boolean) ? '<button class="btn-ghost btn-quiet" id="insp_unassign" title="Take out of the truck — stays on the leg, unassigned (Delete)">To unassigned</button>' : ''}
+      <button class="btn-ghost danger" id="insp_delete" title="Remove from the leg entirely">Delete${cases.length>1?' '+cases.length:''}</button>
+    </div>`;
+  // --- wiring ---
+  const commitText = (inp, field, label)=>{
+    inp.onchange = ()=>{
+      const v = inp.value.trim();
+      if(same(cases.map(cs=>cs[field]||'')) && v===(cases[0][field]||'')) return;
+      if(!v && !same(cases.map(cs=>cs[field]||''))) return;   // blank over "mixed" = leave alone
+      pushUndo(cases.length>1 ? `${label} ×${cases.length}` : label);
+      cases.forEach(cs=>{ if(v) cs[field]=v; else delete cs[field]; });
+      persist(); recomputeAndRender();
+    };
+    inp.onkeydown = e=>{ e.stopPropagation(); if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){ inp.blur(); } if(e.key==='Tab'){ const order=['insp_name','insp_card','insp_wt']; const i=order.indexOf(inp.id); const nx=order[i+(e.shiftKey?-1:1)]; inspRefocus = nx||null; setTimeout(()=>{ inspRefocus=null; },0); } };
   };
-  $('#poolFilterText').oninput = ()=>{ state.poolFilter.q = $('#poolFilterText').value; renderPool(); };
-  $('#poolFilterText').onkeydown = e=>{ e.stopPropagation(); if(e.key==='Escape'){ state.poolFilter.q=''; renderPool(); } };
-  $('#poolFilterTruck').onchange = ()=>{ state.poolFilter.truck = $('#poolFilterTruck').value; persist(); renderPool(); };
-  $('#poolFilterUnassigned').onchange = ()=>{ state.poolFilter.unassigned = $('#poolFilterUnassigned').checked; persist(); renderPool(); };
-  $('#poolAssignSel').onchange = ()=>{
-    const tid = $('#poolAssignSel').value; if(!tid) return;
-    const ids = Array.from(poolSel);
-    pushUndo(`assign ${ids.length} case${ids.length>1?'s':''}`);
-    const targetName = state.trucks.find(t=>t.id===tid).name;
+  commitText($('#insp_name'), 'name', 'rename');
+  commitText($('#insp_card'), 'cardName', 'print name');
+  const nb = $('#insp_number'); if(nb) nb.onclick = ()=>openBatchNameModal(ids, same(names)&&names[0] ? (/\{n\}/i.test(names[0]) ? names[0] : names[0]+' {n}') : '');
+  const chg = $('#insp_chg'); if(chg) chg.onclick = ()=>openChangeTypeModal(ids);
+  const el = $('#insp_editlib'); if(el) el.onclick = ()=>openGearFormModal(libs[0].id);
+  const wi = $('#insp_wt');
+  wi.onchange = ()=>{
+    const raw = wi.value.trim();
+    if(raw==='' && !same(wts)) return;
+    const v = raw==='' ? null : displayToKg(parseFloat(raw)||0, u);
+    pushUndo(cases.length>1 ? 'weight ×'+cases.length : 'case weight');
+    cases.forEach((cs,i)=>{ if(v===null || Math.abs(v-libs[i].weight)<0.01) delete cs.weight; else cs.weight = v; });
+    persist(); recomputeAndRender();
+  };
+  wi.onkeydown = $('#insp_name').onkeydown;
+  const wc = $('#insp_wtcat'); if(wc) wc.onclick = ()=>{ pushUndo('weight from catalog'); cases.forEach(cs=>delete cs.weight); persist(); recomputeAndRender(); };
+  wireSwatches($('#insp_sw'), c=>setCaseColors(ids, c));
+  $('#insp_truck').onchange = ()=>{
+    const tid = $('#insp_truck').value; if(tid==='_mixed') return;
+    pushUndo(tid ? 'move to truck' : 'unassign');
+    if(!tid){ assignCases(ids, null); setSelection(ids, ids[ids.length-1]); persist(); recomputeAndRender(); showToast(`${ids.length} case${ids.length>1?'s':''} unassigned`); return; }
     const { touched } = assignCasesWithOverflow(ids, tid);
-    poolSel.clear(); persist(); recomputeAndRender();
+    setSelection(ids, ids[ids.length-1]);
+    persist(); recomputeAndRender();
+    const target = state.trucks.find(x=>x.id===tid);
     const overweight = overweightTrucks(touched);
-    let msg = touched.length>1
-      ? `Assigned ${ids.length} case${ids.length>1?'s':''} — ${targetName} was full, so it spilled over into ${touched.length-1} more truck${touched.length>2?'s':''}`
-      : `Assigned ${ids.length} case${ids.length>1?'s':''} to ${targetName}`;
+    let msg = touched.length>1 ? `${target.name} was full — some spilled into a new truck` : `Moved to ${target.name}`;
     if(overweight.length) msg += ` — now over: ${overweight.join(', ')}`;
     showToast(msg);
   };
-  $('#poolBatchNameBtn').onclick = ()=>{ openBatchNameModal(Array.from(poolSel)); };
-  $('#poolUnassignBtn').onclick = ()=>{ const ids = Array.from(poolSel); pushUndo('unassign'); assignCases(ids, null); poolSel.clear(); persist(); recomputeAndRender(); };
-  $('#poolDeleteBtn').onclick = ()=>{ const ids = Array.from(poolSel); poolSel.clear(); deleteCases(ids); };
-  $('#poolClearSelBtn').onclick = ()=>{ poolSel.clear(); renderPool(); };
-}
-function renderAllLoads(){
-  const box = $('#allLoads'); if(!box) return;
-  const btn = $('#allLoadsBtn');
-  btn.textContent = state.showAllLoads ? 'This truck' : 'All trucks';
-  btn.classList.toggle('active', state.showAllLoads);
-  { const t = activeTruck(); $('#loadTitle').textContent = state.showAllLoads ? 'All trucks' : (t ? `In ${t.name}` : 'Current load'); }
-  if(!state.showAllLoads){ box.style.display='none'; box.innerHTML=''; $('#loadList').style.display='block'; $('#loadEmpty').style.display = state.cases.length?'none':'block'; return; }
-  syncActiveTruck();
-  box.style.display='block'; $('#loadList').style.display='none'; $('#loadEmpty').style.display='none';
-  const u = state.units;
-  box.innerHTML = state.trucks.map((t,ti)=>{
-    const isActive = t.id===state.activeTruckId;
-    const s = fleetCache[t.id];
-    const ids = t.cases||[];
-    const groups = {}; const order = [];
-    ids.forEach(id=>{ const cs=caseById(id); if(!cs) return; if(!groups[cs.libId]){ groups[cs.libId]=[]; order.push(cs.libId); } groups[cs.libId].push(cs); });
-    const rows = order.map(libId=>{
-      const g = state.gearLibrary.find(x=>x.id===libId); if(!g) return '';
-      const c = catById(catOf(g)); const base = (c.id==='other'||(g.name&&g.name!==(c.short||'').toUpperCase()))?g.name:c.short;
-      const names = groups[libId].filter(cs=>cs.name).map(cs=>cs.name);
-      return `<div class="ot-row"><span>${esc(base)}${g.short&&g.short.toLowerCase()!==(c.short||'').toLowerCase()?' · '+esc(g.short):''}<span class="load-size">${dimsSorted(g,u,1)} ${lenUnitLabel(u)}</span>${names.length?`<div class="ot-names">${names.map(esc).join(', ')}</div>`:''}</span><span class="ot-qty">×${groups[libId].length}</span></div>`;
-    }).join('');
-    return `<div class="other-truck"><div class="ot-head ${isActive?'active':''}" data-truck="${t.id}"><span>${ti+1} · ${esc(t.name)}</span><small>${ids.length} case${ids.length!==1?'s':''}${s?` · ${fmt(kgToDisplay(s.wb.placedWeight,u),0)} ${wtUnitLabel(u)}${s.unplaced?` · <span class="unplaced-tag">${s.unplaced} unfit</span>`:''}`:''}${isActive?'':' · click to edit'}</small></div>${rows || '<div class="empty-note">Empty.</div>'}</div>`;
-  }).join('');
-  box.querySelectorAll('.ot-head').forEach(h=>{ h.onclick = ()=>{ const id=h.getAttribute('data-truck'); if(id!==state.activeTruckId) switchTruck(id); }; });
-}
-function renderLoadList(){
-  const list = $('#loadList');
-  const units = state.units;
-  list.innerHTML = '';
-  $('#loadEmpty').style.display = state.cases.length===0 ? 'block' : 'none';
-  // group this truck's cases by size type, in packing-priority order of first appearance
-  const groups = []; const byLib = {};
-  state.cases.forEach(id=>{ const cs = caseById(id); if(!cs) return; if(!byLib[cs.libId]){ byLib[cs.libId] = { libId: cs.libId, ids: [] }; groups.push(byLib[cs.libId]); } byLib[cs.libId].ids.push(id); });
-  groups.forEach((grp, idx)=>{
-    const g = state.gearLibrary.find(x=>x.id===grp.libId); if(!g) return;
-    const row = document.createElement('div');
-    row.className = 'load-row';
-    const named = grp.ids.filter(id=>caseById(id).name).length;
-    row.innerHTML = `
-      <span class="load-order">${idx+1}</span>
-      <span class="gear-name" title="${g.name}">${(()=>{ const c=catById(catOf(g)); const base=(c.id==='other'||(g.name&&g.name!==(c.short||'').toUpperCase()))?g.name:c.short; const sh=g.short&&g.short.toLowerCase()!==(c.short||'').toLowerCase()?' · '+g.short:''; return esc(base+sh); })()}</span>
-      <span class="load-size load-size-row">${dimsSorted(g,units,1)} ${lenUnitLabel(units)} · ${fmt(kgToDisplay(g.weight,units),0)} ${wtUnitLabel(units)}</span>
-      <button class="names-btn ${state.expanded[grp.libId]?'open':''}" data-names="${grp.libId}" title="Name / edit each case">${named?`${named}/${grp.ids.length} named`:'names'} ${state.expanded[grp.libId]?'▾':'▸'}</button>
-      <span class="qty-input" style="display:inline-block;background:#F6F6F3;" title="Cases of this size in this truck">×${grp.ids.length}</span>
-      <div class="order-btns">
-        <button data-up="${idx}" ${idx===0?'disabled':''}>▲</button>
-        <button data-down="${idx}" ${idx===groups.length-1?'disabled':''}>▼</button>
-      </div>
-      <button class="icon-btn" data-add-more="${grp.libId}" title="Add one more of this size to this truck">+</button>
-      ${(()=>{ if(state.expanded[grp.libId]) return ''; const gm={}; const order=[]; let un=0; grp.ids.forEach(id=>{ const cs=caseById(id); const l=cs.name; if(!l){ un++; return; } const col=cs.color||colorOf(g); const gk=l+'|'+col; if(!gm[gk]){ gm[gk]={l,col,n:0}; order.push(gk); } gm[gk].n++; }); if(!order.length) return ''; return `<div class="load-names">${order.map(gk=>{const x=gm[gk]; return `<span class="nm" style="border-left:4px solid ${x.col}">${x.n>1?x.n+'× ':''}${esc(x.l)}</span>`;}).join('')}${un?`<span class="nm un">+${un} unnamed</span>`:''}</div>`; })()}
-      ${state.expanded[grp.libId] ? `<div class="unit-list">${grp.ids.map((key,i)=>{
-          const cs = caseById(key);
-          const b = packResult.placed.find(x=>x.key===key);
-          const where = b ? `row ${rowNumberOf(b)}${b.manual?' · pinned':''}` : (state.staged[key] ? 'waiting' : 'not loaded');
-          const wv = fmt(kgToDisplay(typeof cs.weight==='number'?cs.weight:g.weight, units),0).replace(/,/g,'');
-          return `<div class="unit-row ${isSelected(key)?'selected':''}" data-unit="${key}"><span class="drag-handle" data-drag2="${key}" title="Drag onto a truck to move it there">⠿</span><span class="unit-idx">#${i+1}</span><button class="unit-color" data-color="${key}" title="Color for this case" style="background:${cs.color||colorOf(g)}"></button><input type="text" data-label="${key}" value="${(cs.name||'').replace(/"/g,'&quot;')}" placeholder="${esc(catById(catOf(g)).short||g.name)} ${i+1}"><input type="number" class="unit-wt ${typeof cs.weight==='number'?'custom':''}" data-weight="${key}" value="${wv}" title="Weight of this case (${wtUnitLabel(units)}). Blank = library weight." style="width:58px;flex:0 0 58px;text-align:right;"><span class="unit-where">${where}</span><button class="icon-btn" data-chg-unit="${key}" title="Change size" style="width:20px;height:20px;font-size:11px;">⇄</button><button class="icon-btn" data-rm-unit="${key}" title="Back to the pool" style="width:20px;height:20px;font-size:12px;">×</button></div>`;
-        }).join('')}</div>` : ''}
-    `;
-    list.appendChild(row);
-  });
-  list.querySelectorAll('[data-names]').forEach(btn=>{
-    btn.onclick = ()=>{ const id = btn.getAttribute('data-names'); state.expanded[id] = !state.expanded[id]; renderLoadList(); };
-  });
-  list.querySelectorAll('[data-add-more]').forEach(btn=>{
-    btn.onclick = ()=>{ pushUndo('add case'); addCasesToPool(btn.getAttribute('data-add-more'), 1, { assignTo: state.activeTruckId }); persist(); recomputeAndRender(); };
-  });
-  list.querySelectorAll('[data-color]').forEach(btn=>{ btn.onclick = ()=>openColorPop(btn, [btn.getAttribute('data-color')]); });
-  list.querySelectorAll('[data-drag2]').forEach(h=>{
-    h.addEventListener('pointerdown', e=>{
-      e.preventDefault();
-      const key = h.getAttribute('data-drag2'); const cs = caseById(key); const g = state.gearLibrary.find(x=>x.id===cs.libId);
-      startTileDrag(key, state.activeTruckId, e.clientX, e.clientY, cs.name || (catById(catOf(g)).short||g.name));
-    });
-  });
-  list.querySelectorAll('[data-chg-unit]').forEach(btn=>{ btn.onclick = ()=>openChangeTypeModal(btn.getAttribute('data-chg-unit')); });
-  list.querySelectorAll('[data-rm-unit]').forEach(btn=>{ btn.onclick = ()=>removeUnits([btn.getAttribute('data-rm-unit')]); });
-  list.querySelectorAll('[data-weight]').forEach(inp=>{
-    const key = inp.getAttribute('data-weight');
-    inp.onchange = ()=>{
-      const cs = caseById(key); const g = cs && state.gearLibrary.find(x=>x.id===cs.libId); if(!g) return;
-      const raw = inp.value.trim();
-      const v = raw==='' ? null : displayToKg(parseFloat(raw)||0, units);
-      pushUndo('case weight');
-      if(v===null || Math.abs(v-g.weight)<0.01) delete cs.weight; else cs.weight = v;
-      persist(); recomputeAndRender();
+  const pin = $('#insp_pin'); if(pin){
+    pin.indeterminate = boxes.length>1 && anyManual && !allManual;
+    pin.onchange = ()=>{
+      if(pin.checked){ pushUndo(boxes.length>1?'pin '+boxes.length+' cases':'pin'); boxes.forEach(b=>{ if(!b.manual) state.manual[b.key] = { x:b.x, z:b.z, rot:!!b.rot, flip:!!b.flip, t:Date.now() }; }); persist(); recomputeAndRender(); }
+      else releaseSelected();
     };
-    inp.onkeydown = e=>{ e.stopPropagation(); if(e.key==='Enter') inp.blur(); };
-  });
-  list.querySelectorAll('[data-label]').forEach(inp=>{
-    const key = inp.getAttribute('data-label');
-    inp.onfocus = ()=>{ if(packResult.placed.some(b=>b.key===key)){ setSelection([key], key); renderFloor(); renderIso(); renderSelBar(); inp.closest('.unit-list').querySelectorAll('.unit-row').forEach(r=>r.classList.toggle('selected', r.getAttribute('data-unit')===key)); } };
-    inp.onchange = ()=>{
-      const cs = caseById(key); if(!cs) return;
-      const v = inp.value.trim();
-      if(v===(cs.name||'')) return;
-      pushUndo('label');
-      if(v) cs.name = v; else delete cs.name;
-      persist(); renderFloor(); renderIso(); renderSelBar();
-      const active = document.activeElement;
-      const focusKey = active && active.getAttribute && active.getAttribute('data-label');
-      const selStart = active && active.selectionStart;
-      renderLoadList(); renderAllLoads(); renderPool();
-      if(focusKey){ const nx = list.querySelector(`[data-label="${focusKey}"]`); if(nx){ nx.focus(); try{ nx.setSelectionRange(selStart||0, selStart||0); }catch(e){} } }
-    };
-    inp.onkeydown = e=>{
-      e.stopPropagation();
-      if(e.key==='Enter'){ const all = Array.from(list.querySelectorAll('[data-label]')); const i = all.indexOf(inp); if(all[i+1]) all[i+1].focus(); else inp.blur(); }
-    };
-  });
-  // reorder a size group (packing priority)
-  const reorder = (i, dir)=>{
-    pushUndo('reorder');
-    const order = groups.map(gp=>gp.ids);
-    const j = i+dir; [order[i], order[j]] = [order[j], order[i]];
-    state.cases = order.flat();
-    persist(); recomputeAndRender();
-  };
-  list.querySelectorAll('[data-up]').forEach(btn=>{ btn.onclick = ()=>reorder(parseInt(btn.getAttribute('data-up')), -1); });
-  list.querySelectorAll('[data-down]').forEach(btn=>{ btn.onclick = ()=>reorder(parseInt(btn.getAttribute('data-down')), +1); });
-
-  const unplacedBox = $('#unplacedSummary');
-  if(packResult.unplaced.length>0){
-    const counts = {};
-    packResult.unplaced.forEach(u=>{ counts[u.item.name] = (counts[u.item.name]||0)+1; });
-    const parts = Object.keys(counts).map(n=>`${n} ×${counts[n]}`).join(', ');
-    const others = state.trucks.filter(t=>t.id!==state.activeTruckId);
-    const sendUI = others.length ? ` <select class="send-select" id="sendUnfitSel"><option value="">Send all to…</option>${others.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select>` : '';
-    unplacedBox.innerHTML = `<span class="unplaced-tag">DOESN'T FIT</span> <span style="font-size:12px;">${parts}</span>${sendUI}`;
-    const ss = $('#sendUnfitSel');
-    if(ss) ss.onchange = ()=>{ if(!ss.value) return; const keys = packResult.unplaced.map(u=>u.key); moveUnits(keys, ss.value); };
-  } else {
-    unplacedBox.innerHTML = '';
   }
+  const rc = $('#insp_rot'); if(rc) rc.onchange = rotateSelected;
+  const on = (id, fn)=>{ const e=$('#'+id); if(e) e.onclick = fn; };
+  on('insp_rotate', rotateSelected);
+  on('insp_flip', flipSelected);
+  on('insp_unstack', ()=>unstackSelected(ids[0]));
+  on('insp_unstacktop', ()=>unstackSelected(top.key));
+  on('insp_picktop', ()=>{ setSelection([top.key], top.key); afterSelectionChange(); });
+  on('insp_release', releaseSelected);
+  on('insp_dup', ()=>{
+    if(boxes.length===cases.length){ duplicateSelected(); return; }
+    // not all on this floor plan — clone each case into the same truck (or unassigned)
+    pushUndo(cases.length>1 ? 'duplicate '+cases.length+' cases' : 'duplicate');
+    const made = [];
+    cases.forEach((cs,i)=>{ const t = owners[i]; made.push(...addCasesToPool(cs.libId, 1, { name: cs.name, cardName: cs.cardName, weight: cs.weight, color: cs.color, assignTo: t ? t.id : null })); });
+    setSelection(made, made[made.length-1]);
+    persist(); recomputeAndRender();
+    showToast(`Duplicated ${cases.length} case${cases.length>1?'s':''}`);
+  });
+  on('insp_unassign', ()=>{ pushUndo(ids.length>1?'unassign cases':'unassign case'); assignCases(ids, null); setSelection(ids, ids[ids.length-1]); persist(); recomputeAndRender(); showToast(`${ids.length} case${ids.length>1?'s':''} now unassigned`); });
+  on('insp_delete', ()=>deleteCases(ids));
+  if(inspRefocus){ const nx = $('#'+inspRefocus); inspRefocus = null; if(nx){ nx.focus(); if(nx.select) nx.select(); } }
 }
 
 /* ============================================================
@@ -3205,7 +3277,6 @@ function handleFloorPointerDown(e){
     marquee = { x0:px, y0:py, x1:px, y1:py, additive, base: state.selectedKeys.slice(), truckId };
     floorCanvas.setPointerCapture(e.pointerId);
   }
-  { const cs = state.selectedKey && caseById(state.selectedKey); if(cs && state.expanded[cs.libId]) renderLoadList(); }
   renderFloor(); renderIso(); renderSelBar();
   updateFocusVisuals();
 }
@@ -3528,7 +3599,7 @@ function removeUnits(keys){
   pushUndo(keys.length>1 ? 'unassign cases' : 'unassign case');
   const removed = removeUnitKeys(keys);
   persist(); recomputeAndRender();
-  showToast(`${removed.length} case${removed.length>1?'s':''} back in the pool`);
+  showToast(`${removed.length} case${removed.length>1?'s':''} out of the truck — now unassigned`);
 }
 // delete cases from the tour entirely
 function deleteCases(ids){
@@ -3888,99 +3959,77 @@ function selectAllCases(){
   renderFloor(); renderIso(); renderSelBar(); renderLoadList();
 }
 
-// updates just the highlight class on already-rendered pool rows to match the current
-// floor-plan selection — cheap, so it can run on every selection change without a full pool rebuild
-function syncPoolSelectionHighlight(){
-  const list = $('#poolList'); if(!list) return;
-  list.querySelectorAll('.pool-row.viewsel').forEach(r=>r.classList.remove('viewsel'));
-  if(state.selectedKey){
-    const row = list.querySelector(`.pool-row[data-case="${state.selectedKey}"]`);
-    if(row) row.classList.add('viewsel');
-  }
-}
 function renderSelBar(){
   syncPoolSelectionHighlight();
   const bar = $('#selBar');
-  const b = selectedBox();
   const sel = selectedBoxes();
+  const b = selectedBox() || sel[0] || null;   // primary may be a case that isn't on this floor plan
+  const u = state.units;
+  const elsewhere = inspectedCases().length - sel.filter(x=>!x.isBar).length;
   if(!b){
-    bar.innerHTML = '<span class="hint">Click a case to select it · Shift-click or lasso for several · press <b>?</b> for all shortcuts</span>';
+    const n = inspectedCases().length;
+    bar.innerHTML = n
+      ? `<span class="sel-name">${n} case${n!==1?'s':''} selected</span><span class="hint">not on this truck's floor plan — edit in the Inspector on the left</span><span class="spacer"></span><button class="btn-ghost" id="clrSel">Clear selection</button>`
+      : '<span class="hint">Click a case to select it · Shift-click or lasso for several · press <b>?</b> for all shortcuts</span>';
+    if($('#clrSel')) $('#clrSel').onclick = ()=>{ clearSelection(); afterSelectionChange(); };
+    renderInspector();
     return;
   }
   if(sel.length>1){
-    const u = state.units;
     const cases = sel.filter(x=>!x.isBar), bars = sel.filter(x=>x.isBar);
     const wt = cases.reduce((s,x)=>s+x.item.weight,0);
-    // is this selection exactly one stack? (same footprint, 2+ high, nothing else selected)
     const oneStack = !bars.length && cases.length>1 && stackMembers(cases[0]).length===cases.length && cases.every(x=>stackMembers(x).length===cases.length);
     const top = oneStack ? stackMembers(cases[0])[cases.length-1] : null;
     bar.innerHTML = `<span class="sel-name">${oneStack ? `Stack of ${cases.length}` : `${cases.length} case${cases.length!==1?'s':''}${bars.length?` + ${bars.length} bar${bars.length>1?'s':''}`:''} selected`}</span>
-      <span class="sel-pos">${fmt(kgToDisplay(wt,u),0)} ${wtUnitLabel(u)} · ${cases.filter(x=>x.manual).length} pinned</span>
+      <span class="sel-pos">${fmt(kgToDisplay(wt,u),0)} ${wtUnitLabel(u)} · ${cases.filter(x=>x.manual).length} pinned${elsewhere>0?` · +${elsewhere} not on this truck`:''}</span>
       <span class="spacer"></span>
       ${oneStack ? `<button class="btn-ghost" id="unstackTop" title="Move the top case down onto the floor at the nearest open spot (U)">Unstack top</button><button class="btn-ghost" id="pickTop" title="Select just the top case so you can rotate, label or move it on its own (or Alt+click it)">Pick top case</button>` : ''}
-      ${state.trucks.length>1 && cases.length ? `<select class="send-select" id="sendSel"><option value="">Send all to…</option>${state.trucks.filter(t=>t.id!==state.activeTruckId).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select>` : ''}
-      ${cases.length?'<button class="btn-ghost" id="rotSel">Rotate all</button>'+(cases.some(x=>x.item.shape==='trapezoid')?'<button class="btn-ghost" id="flipSel" title="Turn the frames end-for-end (180°) in place (F)">Flip 180°</button>':'')+'<button class="btn-ghost" id="chgSel">Change size…</button><button class="btn-ghost" id="colSel">Color…</button><button class="btn-ghost" id="dupSel">Duplicate</button>':''}
+      ${cases.length?'<button class="btn-ghost" id="rotSel" title="R">Rotate all</button>'+(cases.some(x=>x.item.shape==='trapezoid')?'<button class="btn-ghost" id="flipSel" title="Turn the frames end-for-end (180°) in place (F)">Flip 180°</button>':'')+'<button class="btn-ghost" id="dupSel" title="Ctrl/Cmd+D">Duplicate</button>':''}
       ${cases.some(x=>x.manual)?'<button class="btn-ghost" id="relSel">Auto-place</button>':''}
-      <button class="btn-ghost" id="rmSelCase" style="color:var(--stop);border-color:var(--stop);">All to pool</button>
+      <button class="btn-ghost" id="rmSelCase" title="Take these out of the truck — they stay on the leg, unassigned (Delete)">Out of truck</button>
       <button class="btn-ghost" id="clrSel">Clear selection</button>`;
-    const ss = $('#sendSel'); if(ss) ss.onchange = ()=>{ if(ss.value) moveUnits(cases.map(x=>x.key), ss.value); };
     if($('#unstackTop')) $('#unstackTop').onclick = ()=>unstackSelected(top.key);
-    if($('#pickTop')) $('#pickTop').onclick = ()=>{ setSelection([top.key], top.key); renderFloor(); renderIso(); renderSelBar(); renderLoadList(); };
+    if($('#pickTop')) $('#pickTop').onclick = ()=>{ setSelection([top.key], top.key); afterSelectionChange(); };
     if($('#rotSel')) $('#rotSel').onclick = rotateSelected;
     if($('#flipSel')) $('#flipSel').onclick = flipSelected;
-    if($('#chgSel')) $('#chgSel').onclick = ()=>openChangeTypeModal(cases.map(x=>x.key));
-    if($('#colSel')) $('#colSel').onclick = ()=>openColorPop($('#colSel'), cases.map(x=>x.key));
     if($('#dupSel')) $('#dupSel').onclick = duplicateSelected;
     if($('#relSel')) $('#relSel').onclick = releaseSelected;
     $('#rmSelCase').onclick = ()=>{ const keys = cases.map(x=>x.key); if(bars.length){ pushUndo('remove load bars'); state.loadBars = state.loadBars.filter(x=>!bars.some(bb=>bb.key==='bar:'+x.id)); } if(keys.length) removeUnits(keys); else { clearSelection(); persist(); recomputeAndRender(); } };
-    $('#clrSel').onclick = ()=>{ clearSelection(); renderFloor(); renderIso(); renderSelBar(); renderLoadList(); };
+    $('#clrSel').onclick = ()=>{ clearSelection(); afterSelectionChange(); };
+    renderInspector();
     return;
   }
   if(b.isBar){
-    const u = state.units;
     const bw = barWordFor(state.containerKey);
     bar.innerHTML = `<span class="gear-swatch" style="background:#1B1F23"></span><span class="sel-name">${bw==='strap'?'Strap':'Load bar'}</span><span class="sel-pos">${fmt(cmToDisplay(b.x,u),0)} ${lenUnitLabel(u)} from nose · ${fmt(kgToDisplay(BAR_WEIGHT,u),0)} ${wtUnitLabel(u)}</span><span class="spacer"></span><button class="btn-ghost" id="rmBar">Remove ${bw}</button>`;
     $('#rmBar').onclick = removeSelectedBar;
+    renderInspector();
     return;
   }
-  const u = state.units;
   const lvl = levelOf(b);
+  const cs = caseById(b.key);
   bar.innerHTML = `
-    <button class="unit-color" id="selColor" title="Color for this case" style="background:${colorOf(b)}"></button>
-    <input type="text" id="labelSel" class="qty-input" style="width:170px;text-align:left;font-weight:600" value="${(state.labels[b.key]||'').replace(/"/g,'&quot;')}" placeholder="${b.item.name} — add label">
+    <span class="unit-color" style="background:${colorOf(b)};cursor:default;"></span>
+    <span class="sel-name" title="Rename in the Inspector (Enter)">${esc(cs && cs.name ? cs.name : b.item.name)}</span>
     ${b.manual ? '<span class="pin-tag">PINNED</span>' : '<span class="hint">auto</span>'}
     <span class="sel-pos">${fmt(cmToDisplay(b.x+(state.clearance||0)/2,u),0)} ${lenUnitLabel(u)} from nose · ${fmt(cmToDisplay(b.z+(state.clearance||0)/2,u),0)} ${lenUnitLabel(u)} from side · level ${lvl+1}${b.rot?' · rotated':''}</span>
-    <span class="sel-pos">${fmt(kgToDisplay(b.item.weight,u),0)} ${wtUnitLabel(u)}${typeof state.weights[b.key]==='number'?' (custom)':''}</span>
     ${b.manual && b.support<0.8 && b.y>EPS ? '<span class="unplaced-tag">'+fmt(b.support*100,0)+'% SUPPORTED</span>' : ''}
+    ${elsewhere>0 ? `<span class="hint">+${elsewhere} selected elsewhere</span>` : ''}
     <span class="spacer"></span>
-    ${state.trucks.length>1 ? `<select class="send-select" id="sendSel"><option value="">Send to…</option>${state.trucks.filter(t=>t.id!==state.activeTruckId).map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}</select>` : ''}
-    <button class="btn-ghost" id="rotSel">Rotate 90°</button>
+    <button class="btn-ghost" id="rotSel" title="R">Rotate 90°</button>
     ${b.item.shape==='trapezoid' ? '<button class="btn-ghost" id="flipSel" title="Turn it end-for-end (180°) in place — the angled edge switches ends (F)">Flip 180°</button>' : ''}
-    <button class="btn-ghost" id="chgSel" title="Swap this case for a different library size">Change size…</button>
-    <button class="btn-ghost" id="dupSel" title="Add another one just like it (Ctrl/Cmd+D)">Duplicate</button>
     ${b.y>EPS ? '<button class="btn-ghost" id="unstackSel" title="Move this case down onto the floor, off whatever it\'s sitting on (U)">Unstack</button>' : ''}
+    <button class="btn-ghost" id="dupSel" title="Add another one just like it (Ctrl/Cmd+D)">Duplicate</button>
     ${b.manual ? '<button class="btn-ghost" id="relSel">Auto-place</button>' : ''}
-    <button class="btn-ghost" id="rmSelCase" title="Take this case out of the truck, back to the pool (Delete)" style="color:var(--stop);border-color:var(--stop);">To pool</button>
+    <button class="btn-ghost" id="rmSelCase" title="Take this case out of the truck — it stays on the leg, unassigned (Delete)">Out of truck</button>
   `;
   $('#rotSel').onclick = rotateSelected;
   if($('#flipSel')) $('#flipSel').onclick = flipSelected;
   if($('#unstackSel')) $('#unstackSel').onclick = ()=>unstackSelected(b.key);
   $('#rmSelCase').onclick = ()=>removeUnits([b.key]);
-  $('#chgSel').onclick = ()=>openChangeTypeModal(b.key);
-  $('#selColor').onclick = ()=>openColorPop($('#selColor'), [b.key]);
   $('#dupSel').onclick = duplicateSelected;
   if($('#relSel')) $('#relSel').onclick = releaseSelected;
-  const sendSel = $('#sendSel');
-  if(sendSel) sendSel.onchange = ()=>{ if(sendSel.value) moveUnits([b.key], sendSel.value); };
-  const li = $('#labelSel');
-  li.onchange = ()=>{
-    const v = li.value.trim();
-    if(v===(state.labels[b.key]||'')) return;
-    pushUndo('label');
-    if(v) state.labels[b.key] = v; else delete state.labels[b.key];
-    persist(); renderFloor(); renderIso(); renderSelBar(); renderLoadList(); renderAllLoads();
-  };
-  li.onkeydown = e=>{ if(e.key==='Enter'){ li.blur(); } e.stopPropagation(); };
+  renderInspector();
 }
 
 document.addEventListener('keydown', e=>{
@@ -3994,6 +4043,7 @@ document.addEventListener('keydown', e=>{
   if((e.ctrlKey||e.metaKey) && (e.key==='d'||e.key==='D')){ if(state.selectedKeys.length){ e.preventDefault(); duplicateSelected(); } return; }
   if(e.key==='?' && !e.ctrlKey && !e.metaKey){ e.preventDefault(); openShortcutsModal(); return; }
   if(!state.selectedKey) return;
+  if(e.key==='Enter' && !e.ctrlKey && !e.metaKey){ const n = $('#insp_name'); if(n){ e.preventDefault(); n.focus(); n.select(); } return; }
   const step = (state.units==='imperial' ? CM_PER_IN : 1) * (e.shiftKey?10:1);
   if(e.key==='r' || e.key==='R'){ e.preventDefault(); rotateSelected(); }
   else if(e.key==='u' || e.key==='U'){ e.preventDefault(); unstackFromKeyboard(); }
@@ -4002,9 +4052,11 @@ document.addEventListener('keydown', e=>{
   else if(e.key==='ArrowRight'){ e.preventDefault(); nudgeSelected(step,0); }
   else if(e.key==='ArrowUp'){ e.preventDefault(); nudgeSelected(0,-step); }
   else if(e.key==='ArrowDown'){ e.preventDefault(); nudgeSelected(0,step); }
-  else if(e.key==='Escape'){ clearSelection(); renderFloor(); renderIso(); renderSelBar(); renderLoadList(); }
+  else if(e.key==='Escape'){ clearSelection(); afterSelectionChange(); }
   else if(e.key==='Delete' || e.key==='Backspace'){
-    const sel = selectedBoxes(); if(!sel.length) return; e.preventDefault();
+    const sel = selectedBoxes();
+    if(!sel.length){ const cs = inspectedCases(); if(!cs.length) return; e.preventDefault(); const ids = cs.map(c=>c.id); if(ids.some(id=>ownerOf(id))){ pushUndo('unassign'); assignCases(ids, null); setSelection(ids, ids[ids.length-1]); persist(); recomputeAndRender(); showToast(`${ids.length} case${ids.length>1?'s':''} now unassigned`); } return; }
+    e.preventDefault();
     const bars = sel.filter(x=>x.isBar), cases = sel.filter(x=>!x.isBar);
     if(bars.length){ pushUndo(bars.length>1?'remove load bars':'remove load bar'); state.loadBars = state.loadBars.filter(x=>!bars.some(bb=>bb.key==='bar:'+x.id)); }
     if(cases.length) removeUnits(cases.map(x=>x.key)); else { clearSelection(); persist(); recomputeAndRender(); }
@@ -4074,9 +4126,20 @@ function unfitLaneHTML(t, s){
 }
 let fleetCache = {};
 
+function emptyTruck(id){
+  const t = state.trucks.find(x=>x.id===id); if(!t) return;
+  syncActiveTruck();
+  pushUndo('empty truck');
+  const n = (t.cases||[]).length;
+  t.cases = []; t.manual = {}; t.staged = {};
+  if(id===state.activeTruckId){ state.cases = []; state.manual = {}; state.staged = {}; clearSelection(); }
+  persist(); recomputeAndRender();
+  showToast(`${t.name} emptied — ${n} case${n!==1?'s':''} now unassigned`);
+}
 function switchTruck(id){
   if(id===state.activeTruckId) return;
   syncActiveTruck();
+  (state.invFold||(state.invFold={}))[id] = false;   // the truck being edited is always open in the Cases list
   loadTruckIntoState(state.trucks.find(t=>t.id===id));
   persist(); renderAll();
 }
@@ -4119,7 +4182,7 @@ function deleteTruck(t){
   syncActiveTruck();
   const back = openModal(`
     <h3>Remove ${t.name}?</h3>
-    <div style="font-size:13px;margin-bottom:12px;">Its ${(t.cases||[]).length} cases go back to the pool as unassigned.</div>
+    <div style="font-size:13px;margin-bottom:12px;">Its ${(t.cases||[]).length} cases stay on the leg as unassigned.</div>
     <div class="modal-row"><button class="btn-ghost" id="cancelDel">Cancel</button><button class="btn-block" id="confirmDel" style="flex:0 0 auto;background:var(--stop)">Remove</button></div>`);
   back.querySelector('#cancelDel').onclick = ()=>back.remove();
   back.querySelector('#confirmDel').onclick = ()=>{
@@ -4160,8 +4223,6 @@ function updateFocusVisuals(){
   });
   const nameEl = document.getElementById('editingTruckName');
   if(nameEl){ const t = activeTruck(); nameEl.textContent = t ? t.name : '—'; }
-  const lt = document.getElementById('loadTitle');
-  if(lt && !state.showAllLoads){ const t = activeTruck(); lt.textContent = t ? `In ${t.name}` : 'Current load'; }
 }
 // redraws just the truck-panel canvases (no HTML rebuild) — used both by the full
 // workspace render and by lightweight updates like syncing a pool selection highlight
@@ -4209,10 +4270,11 @@ function renderWorkspace(){
         <button data-bar="${t.id}" title="Add a ${barWordFor(t.containerKey)} to this truck">${ICON.bar}<span class="wt-btn-label">Add ${barWordFor(t.containerKey)}</span></button>
         <button data-rn="${t.id}" title="Rename this truck">${ICON.pencil}<span class="wt-btn-label">Rename</span></button>
         <button data-dup="${t.id}" title="Duplicate this truck and everything in it">${ICON.copy}<span class="wt-btn-label">Duplicate</span></button>
-        ${state.trucks.length>1?`<button data-del="${t.id}" title="Remove this truck (its cases go back to the pool)">${ICON.x}<span class="wt-btn-label">Remove</span></button>`:''}
+        ${(t.cases||[]).length?`<button data-empty="${t.id}" title="Take every case out of this truck — they stay on the leg, unassigned">${ICON.reset}<span class="wt-btn-label">Empty</span></button>`:''}
+        ${state.trucks.length>1?`<button data-del="${t.id}" title="Remove this truck (its cases become unassigned)">${ICON.x}<span class="wt-btn-label">Remove</span></button>`:''}
       </div>
       ${hasLayer2 ? `<div class="layer2-divider">Layer 2</div><div class="wtile-canvas-wrap layer2-wrap"><canvas data-layer2tile="${t.id}"></canvas></div>` : ''}
-      <div class="wtile-canvas-wrap"><canvas data-tile="${t.id}"></canvas>${(s.cases||s.unplaced||(s.pr.staged||[]).length) ? '' : `<div class="wtile-empty-hint"><div class="weh-title">Empty truck</div><div>${(state.pool||[]).length ? 'Drag cases in from the pool, or use <b>Auto-place all</b> above.' : 'Start by hitting <b>+</b> next to a size in the Gear library — that puts a case in the pool and into this truck.'}</div></div>`}</div>
+      <div class="wtile-canvas-wrap"><canvas data-tile="${t.id}"></canvas>${(s.cases||s.unplaced||(s.pr.staged||[]).length) ? '' : `<div class="wtile-empty-hint"><div class="weh-title">Empty truck</div><div>${(state.pool||[]).length ? 'Drag cases in from the Cases list, or use <b>Auto-place all</b> above.' : 'Start in the <b>Catalog</b> tab — hit <b>+ Add</b> on a size to put cases in this truck.'}</div></div>`}</div>
       <div class="wtile-stats">
         <span>${s.label}</span>
         <span class="wt-bar"><div style="width:${Math.min(100,s.volPct)}%;background:var(--steel)"></div></span>
@@ -4231,6 +4293,7 @@ function renderWorkspace(){
   grid.querySelectorAll('[data-rn]').forEach(b=>{ b.onclick = e=>{ e.stopPropagation(); openRenameTruckModal(state.trucks.find(t=>t.id===b.getAttribute('data-rn'))); }; });
   grid.querySelectorAll('[data-dup]').forEach(b=>{ b.onclick = e=>{ e.stopPropagation(); duplicateTruck(state.trucks.find(t=>t.id===b.getAttribute('data-dup'))); }; });
   grid.querySelectorAll('[data-del]').forEach(b=>{ b.onclick = e=>{ e.stopPropagation(); deleteTruck(state.trucks.find(t=>t.id===b.getAttribute('data-del'))); }; });
+  grid.querySelectorAll('[data-empty]').forEach(b=>{ b.onclick = e=>{ e.stopPropagation(); emptyTruck(b.getAttribute('data-empty')); }; });
   grid.querySelectorAll('[data-bar]').forEach(b=>{ b.onclick = e=>{ e.stopPropagation(); const id=b.getAttribute('data-bar'); focusTruckLight(id); addLoadBar(); }; });
   grid.querySelectorAll('[data-containersel]').forEach(sel=>{
     sel.onclick = e=>e.stopPropagation();
@@ -4507,20 +4570,20 @@ function recomputeAndRender(){
   if(state.activeLayer !== 'all' && state.activeLayer >= packResult.layers.length){
     state.activeLayer = packResult.layers.length ? 0 : 'all';
   }
-  state.selectedKeys = (state.selectedKeys||[]).filter(k=>packResult.placed.some(b=>b.key===k));
+  // a selection can include cases that aren't on this floor plan (unassigned, or in another
+  // truck) — the Inspector edits those too; floor-plan verbs only act on what's placed here
+  state.selectedKeys = (state.selectedKeys||[]).filter(k=>packResult.placed.some(b=>b.key===k) || caseById(k));
   if(state.selectedKey && !state.selectedKeys.includes(state.selectedKey)) state.selectedKey = state.selectedKeys[state.selectedKeys.length-1] || null;
-  renderLoadList();
   renderStagingTray();
   renderLayerTabs();
   renderFloor();
   renderIso();
-  renderSelBar();
   renderMetrics();
   renderAdvancedSettings();
   renderWorkspace();
   renderUndoButtons();
-  renderAllLoads();
-  renderPool();
+  renderInventory();
+  renderSelBar();
 }
 function renderClearanceInput(){
   $('#autoStackChk').checked = !!state.autoStack;
@@ -4787,7 +4850,8 @@ function openShortcutsModal(){
       ['U', 'Unstack — drop the top case to the nearest open floor spot'],
       [mod+' + D', 'Duplicate'],
       [mod+' + C / '+mod+' + V', 'Copy and paste cases'],
-      ['Delete / Backspace', 'Send the selection back to the pool'],
+      ['Delete / Backspace', 'Take the selection out of the truck (it stays on the leg, unassigned)'],
+      ['Enter', 'Rename the selected case in the Inspector'],
     ]],
     ['Plan', [
       [mod+' + Z / '+mod+' + Shift + Z', 'Undo / redo'],
@@ -4825,7 +4889,7 @@ function openNewPlanModal(){
   const customGear = state.gearLibrary.filter(g=>!g.stock);
   const back = openModal(`
     <h3>Start a new plan?</h3>
-    <div style="font-size:13px;margin-bottom:8px;">This clears the whole workspace: ${tabCount} tab${tabCount!==1?'s':''}, ${truckCount} truck${truckCount!==1?'s':''}, and ${caseCount} case${caseCount!==1?'s':''} in the pool.</div>
+    <div style="font-size:13px;margin-bottom:8px;">This clears the whole workspace: ${tabCount} tab${tabCount!==1?'s':''}, ${truckCount} truck${truckCount!==1?'s':''}, and ${caseCount} case${caseCount!==1?'s':''}.</div>
     <div style="font-size:13px;margin-bottom:8px;">${customGear.length} custom gear size${customGear.length!==1?'s':''} in the library will be removed too. Stock (protected) sizes stay.</div>
     <div style="font-size:12px;color:var(--stop);margin-bottom:12px;">This can't be undone — save your current plan first if you want to keep it.</div>
     <div class="modal-row"><button class="btn-ghost" id="cancelNewPlan">Cancel</button><button class="btn-block" id="confirmNewPlan" style="flex:0 0 auto;background:var(--stop)">Start new plan</button></div>`);
@@ -5768,10 +5832,10 @@ function applyPhotoImport(parsed, opts){
       cases += count;
     });
   });
-  state.poolFilter = Object.assign({}, state.poolFilter||{}, { unassigned: true, truck: '' });
+  state.invTab = 'cases'; state.invFilter = { truck: opts.autoAssign ? '' : '_none' };
   persist(); renderAll();
-  const dest = opts.autoAssign ? ` into ${trucksTouched} truck${trucksTouched!==1?'s':''}` : ' to the pool';
-  showToast(`Added ${cases} cases${dest} from ${sheets} sheet${sheets!==1?'s':''}${newTypes?`, ${newTypes} new library size${newTypes>1?'s':''}`:''}${opts.autoAssign?'':' — assign them from the Pool'}`);
+  const dest = opts.autoAssign ? ` into ${trucksTouched} truck${trucksTouched!==1?'s':''}` : ', unassigned';
+  showToast(`Added ${cases} cases${dest} from ${sheets} sheet${sheets!==1?'s':''}${newTypes?`, ${newTypes} new library size${newTypes>1?'s':''}`:''}${opts.autoAssign?'':' — assign them from the Cases list'}`);
 }
 
 function openPhotoImportModal(){
@@ -5790,7 +5854,7 @@ function openPhotoImportModal(){
     <div id="ph_status" style="font-size:12px;min-height:18px;margin-bottom:6px;"></div>
     <div id="ph_review" style="max-height:340px;overflow:auto;"></div>
     <label id="ph_assign_row" style="display:none;font-size:13px;color:var(--ink);align-items:center;gap:8px;margin-top:10px;padding:8px 10px;background:#FFF6D9;border:1px solid var(--hazard);border-radius:var(--radius);">
-      <input type="checkbox" id="ph_assign" checked> <span><b>Create a truck for each sheet</b> and put its cases straight in (an existing truck with the same name is reused). Untick to leave everything in the Pool instead.</span>
+      <input type="checkbox" id="ph_assign" checked> <span><b>Create a truck for each sheet</b> and put its cases straight in (an existing truck with the same name is reused). Untick to leave everything unassigned instead.</span>
     </label>
     <div class="modal-row" style="margin-top:10px;"><button class="btn-ghost" id="ph_cancel">Cancel</button><button class="btn-block" id="ph_read" style="flex:0 0 auto;">Read files</button><button class="btn-block" id="ph_apply" style="flex:0 0 auto;display:none;">Import</button></div>`);
   back.querySelector('.modal').classList.add('wide');
@@ -6075,7 +6139,7 @@ function openGearFormModal(editId){
     back.querySelector('#f_delete').onclick = ()=>{
       const delId = editingId;
       const used = state.pool.filter(c=>c.libId===delId).length;
-      if(used){ showToast(`${used} case${used>1?'s':''} in the pool use this size — delete or resize them first`); return; }
+      if(used){ showToast(`${used} case${used>1?'s':''} on this leg use this size — delete or resize them first`); return; }
       const gg = state.gearLibrary.find(x=>x.id===delId);
       const confirmBack = openModal(`
         <h3>Delete "${esc(gg.name)}"?</h3>
@@ -6160,21 +6224,13 @@ function wireEvents(){
   };
   $('#autoPlaceNewChk').onchange = (e)=>{ state.autoPlaceNew = e.target.checked; persist(); };
   $('#autoStackChk').onchange = (e)=>{ pushUndo('auto-stack setting'); state.autoStack = e.target.checked; persist(); recomputeAndRender(); };
-  $('#gearLibHead').onclick = (e)=>{ if(e.target.closest('input,button')) return; state.gearLibCollapsed = !state.gearLibCollapsed; persist(); renderGearLibrary(); };
   $('#gearFilter').oninput = ()=>renderGearLibrary();
   $('#gearFilter').onkeydown = e=>{ e.stopPropagation(); if(e.key==='Escape'){ $('#gearFilter').value=''; renderGearLibrary(); } };
   $('#toggleAddForm').onclick = ()=>openGearFormModal(null);
-  $('#clearLoadBtn').onclick = ()=>{
-    pushUndo('clear load');
-    state.cases = []; state.manual = {}; state.staged = {}; clearSelection();
-    persist(); recomputeAndRender();
-    showToast('Truck emptied — cases are back in the pool');
-  };
   $('#undoBtn').onclick = undo;
   $('#redoBtn').onclick = redo;
   $('#undoBtn').insertAdjacentHTML('afterbegin', ICON.undo);
   $('#redoBtn').insertAdjacentHTML('afterbegin', ICON.redo);
-  $('#clearLoadBtn').innerHTML = ICON.reset;
   $('#photoImportBtn').querySelector('.ib').innerHTML = ICON.camera;
   $('#shortcutsBtn').onclick = openShortcutsModal;
   // isometric view folds away when you'd rather have the floor plans and weights closer together
@@ -6201,8 +6257,7 @@ function wireEvents(){
   document.querySelectorAll('#jumpBar [data-jump]').forEach(b=>{
     b.onclick = ()=>{
       const open = b.getAttribute('data-open');
-      if(open==='gear' && state.gearLibCollapsed){ state.gearLibCollapsed=false; persist(); renderGearLibrary(); }
-      if(open==='pool' && state.poolCollapsed){ state.poolCollapsed=false; persist(); renderPool(); }
+      if(open){ state.invTab = open; persist(); renderInventory(); }
       const el = document.getElementById(b.getAttribute('data-jump'));
       if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
     };
@@ -6216,7 +6271,6 @@ function wireEvents(){
   $('#photoImportBtn').onclick = openPhotoImportModal;
   $('#workspaceAddBtn').onclick = addTruck;
   
-  $('#allLoadsBtn').onclick = ()=>{ state.showAllLoads = !state.showAllLoads; persist(); renderAllLoads(); };
   $('#printBtn').onclick = openPrintModal;
   $('#dataBtn').onclick = openDataModal;
   $('#savePlanBtn').onclick = openSavePlanModal;
