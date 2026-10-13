@@ -21,6 +21,33 @@
       "icon": "build/icon.png",
       "category": "public.app-category.productivity",
       "minimumSystemVersion": "13.0"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "StowPlan-${version}-Windows-${target}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "artifactName": "StowPlan-Setup-Windows.${ext}"
+    },
+    "portable": {
+      "artifactName": "StowPlan-Portable-Windows.${ext}"
     }
   },
   "devDependencies": {
