@@ -934,7 +934,6 @@
   .ws-tools .icon-btn{ width:var(--ctl-h); font-size:16px; font-weight:600; }
   .ws-wrap{ position:relative; background:#ECEDE9; border-top:1px solid var(--line); }
   #wsCanvas{ display:block; width:100%; height:calc(100vh - 250px); min-height:420px; touch-action:none; cursor:default; }
-  .ws-hint{ position:absolute; left:10px; bottom:8px; font-size:10.5px; color:rgba(27,31,35,0.5); pointer-events:none; }
   .truck-bar{ display:inline-flex; gap:4px; align-items:center; }
   .truck-bar .wt-container-sel{ height:var(--ctl-h); font-size:11px; max-width:190px; border:1px solid var(--line); border-radius:var(--radius); background:#fff; padding:0 6px; font-family:inherit; color:var(--ink); }
   .truck-bar .icon-btn{ width:var(--ctl-h); height:var(--ctl-h); }
@@ -1050,12 +1049,11 @@
             <button class="icon-btn" id="wsZoomOut" title="Zoom out (−)">−</button>
             <button class="icon-btn" id="wsZoomIn" title="Zoom in (+)">+</button>
             <button class="btn-ghost" id="wsFitBtn" title="Fit everything in view (Home, or double-click empty space)">Fit</button>
-            <button class="btn-ghost" id="wsTidyBtn" title="Line the trucks back up in a column and the unassigned cases in the yard">Tidy</button>
+            <button class="btn-ghost" id="wsTidyBtn" title="Line the trucks back up in a grid">Tidy</button>
             <button class="btn-ghost btn-accent" id="workspaceAddBtn">+ Add truck</button>
           </span>
         </div>
         <div class="ws-wrap"><canvas id="wsCanvas"></canvas>
-          <div class="ws-hint">Scroll to pan · ⌘/Ctrl+scroll or pinch to zoom · drag a case out of a truck to unassign it · drag empty space to pan</div>
         </div>
       </div>
 
@@ -1114,7 +1112,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v107'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v108'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -2746,7 +2744,7 @@ window.addEventListener('resize', renderIso);
 /* ============================================================
    WORKSPACE CANVAS — one shared model space per leg. Every truck's
    floor plan sits in it at a world position (cm), unassigned cases
-   live in a yard beside the trucks, and cases that don't fit a
+   live in a tray docked to the bottom edge, and cases that don't fit a
    truck line up next to its doors. Pan, zoom, drag between them.
    ============================================================ */
 let floorCanvas = document.getElementById('wsCanvas');   // the one shared canvas
@@ -2755,9 +2753,11 @@ const FPAD = 10;
 const RULER_TOP = 16;   // px above the container for the length ruler's ticks+numbers
 const RULER_LEFT = 22;  // px left of the container for the width ruler's ticks+numbers
 const WS_TITLE_H = 24;  // px band above the ruler that holds the truck's name
-const WS = { gap: 140, laneGap: 45, laneW: 480, yardGap: 220, yardW: 760, minScale: 0.04, maxScale: 6 };
+const WS = { gap: 140, laneGap: 45, laneW: 480, minScale: 0.04, maxScale: 6 };
+let tray = { h: 28, scroll: 0, items: [], scale: 0.3, contentW: 0, hot: false };   // the docked strip of unassigned cases
+let trayScroll = null;    // {startX, scroll0}
 let floorGeom = { scale:1, w:0, h:0, offX:0, offZ:0 };   // geometry of the truck currently being drawn / interacted with
-let wsLayout = null;      // { blocks:[{t,pr,c,x,y,hasLayer2,lane,laneX,blockH}], yard:{x,y,boxes,w,h} }
+let wsLayout = null;      // { blocks:[{t,pr,c,x,y,hasLayer2,lane,laneX,blockH}] }
 let drawingTruckId = null;
 let pan = null;           // {startX,startY,viewX,viewY,moved}
 let truckMove = null;     // {block,startWx,startWy,origX,origY,moved}
@@ -2834,36 +2834,80 @@ function computeLayout(){
     blocks.push(b);
     maxRight = Math.max(maxRight, b.x + b.fullW);
   });
-  const owned = new Set(); state.trucks.forEach(t=>(t.cases||[]).forEach(id=>owned.add(id)));
-  const free = state.pool.filter(cs=>!owned.has(cs.id)).map(cs=>({ key:cs.id, item:unitItemFor(cs.id,0), cs, kind:'free' })).filter(f=>f.item);
-  const yardX = maxRight + WS.yardGap, yardY = 0;
-  const flow = flowLayout(free.filter(f=>!f.cs.yard), WS.yardW);
-  const boxes = flow.boxes.map(b=>Object.assign(b, { x: yardX + b.x, z: yardY + b.z }))
-    .concat(free.filter(f=>f.cs.yard).map(f=>Object.assign({}, f, { x:f.cs.yard.x, z:f.cs.yard.z, l:f.item.L, w:f.item.W, h:f.item.H, y:0, rot:false, flip:false, manual:false })));
-  wsLayout = { blocks, yard: { x:yardX, y:yardY, boxes, w:flow.w, h:flow.h, flowCount: flow.boxes.length } };
+  wsLayout = { blocks };
   return wsLayout;
 }
 function layoutBounds(){
   let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
   const add=(ax,ay,bx,by)=>{ x0=Math.min(x0,ax); y0=Math.min(y0,ay); x1=Math.max(x1,bx); y1=Math.max(y1,by); };
   wsLayout.blocks.forEach(b=>{ add(b.x, b.y, b.x+b.c.L, b.y+Math.max(b.blockH, b.lane.h)); if(b.lane.boxes.length) add(b.x+b.laneX, b.y, b.x+b.laneX+b.lane.w, b.y+b.lane.h); });
-  wsLayout.yard.boxes.forEach(b=>add(b.x,b.z,b.x+b.l,b.z+b.w));
-  if(!wsLayout.yard.boxes.length) add(wsLayout.yard.x, wsLayout.yard.y, wsLayout.yard.x+300, wsLayout.yard.y+120);   // always leave room to drag something out
   if(!isFinite(x0)) return { x0:0,y0:0,x1:1000,y1:300 };
   return { x0,y0,x1,y1 };
 }
+function unassignedCases(){
+  const owned = new Set(); state.trucks.forEach(t=>(t.cases||[]).forEach(id=>owned.add(id)));
+  return state.pool.filter(cs=>!owned.has(cs.id)).map(cs=>({ key:cs.id, item:unitItemFor(cs.id,0), cs })).filter(f=>f.item);
+}
+function trayRect(){ return { x:0, y: floorGeom.h - tray.h, w: floorGeom.w, h: tray.h }; }
+function computeTray(){
+  const free = unassignedCases();
+  const dragging = !!(drag || freeDrag || tileDrag);
+  tray.h = free.length ? 104 : (dragging ? 64 : 28);
+  const maxW = free.reduce((m,f)=>Math.max(m,f.item.W),0) || 100;
+  tray.scale = Math.min(0.34, 66/maxW);
+  let x = 12;
+  tray.items = free.map(f=>{
+    const it = { key:f.key, item:f.item, l:f.item.L, w:f.item.W, h:f.item.H, y:0, rot:false, flip:false, manual:false, sx:x, sw:f.item.L*tray.scale, sh:f.item.W*tray.scale };
+    x += it.sw + 10; return it;
+  });
+  tray.contentW = x;
+  tray.scroll = Math.max(0, Math.min(tray.scroll, tray.contentW - floorGeom.w + 12));
+}
+function trayItemAt(px, py){
+  const r = trayRect(); if(py < r.y) return null;
+  for(let i=tray.items.length-1;i>=0;i--){ const it = tray.items[i]; const x0 = it.sx - tray.scroll, y0 = r.y + 30; if(px>=x0 && px<=x0+it.sw && py>=y0 && py<=y0+it.sh) return it; }
+  return null;
+}
+function drawTray(){
+  const r = trayRect();
+  const hot = tray.hot;
+  fctx.fillStyle = hot ? '#EEF2F5' : '#F6F6F3'; fctx.fillRect(r.x, r.y, r.w, r.h);
+  fctx.strokeStyle = hot ? '#3B6E8F' : '#D3D5CE'; fctx.lineWidth = hot ? 2 : 1;
+  fctx.beginPath(); fctx.moveTo(0, r.y+0.5); fctx.lineTo(r.w, r.y+0.5); fctx.stroke();
+  fctx.fillStyle = '#3A4147'; fctx.font = '600 10px Oswald, sans-serif'; fctx.textAlign = 'left'; fctx.textBaseline = 'alphabetic';
+  fctx.fillText(`UNASSIGNED · ${tray.items.length}`, 12, r.y + 18);
+  fctx.fillStyle = '#8A9096'; fctx.font = '400 10px IBM Plex Sans, sans-serif';
+  const hint = hot ? 'drop here to take it off its truck' : tray.items.length ? 'drag onto a truck to load' + (tray.contentW > r.w ? ' · scroll sideways for more' : '') : 'drag a case here to take it off its truck';
+  fctx.fillText(hint, 112, r.y + 18);
+  if(!tray.items.length) return;
+  fctx.save(); fctx.beginPath(); fctx.rect(0, r.y+24, r.w, r.h-24); fctx.clip();
+  const savedPR = packResult, savedGeom = floorGeom;
+  packResult = { placed:[], container: savedPR.container || {H:100}, layers:[], unplaced:[], walls:[], staged:[] };
+  floorGeom = { scale: tray.scale, offX: -tray.scroll, offZ: r.y + 30, w: savedGeom.w, h: savedGeom.h };
+  tray.items.forEach(it=>{
+    if(it.sx - tray.scroll > r.w || it.sx - tray.scroll + it.sw < 0) return;
+    if(freeDrag && freeDrag.moved && freeDrag.key===it.key) return;   // it's in flight
+    drawFloorBox(Object.assign({}, it, { x: it.sx/tray.scale, z: 0 }), 1, null, undefined);
+  });
+  packResult = savedPR; floorGeom = savedGeom;
+  fctx.restore();
+  if(tray.contentW > r.w){ // scroll shadow hints
+    fctx.fillStyle = 'rgba(27,31,35,0.35)'; fctx.font = '400 10px IBM Plex Sans, sans-serif'; fctx.textAlign = 'right';
+    fctx.fillText(`${Math.round(tray.scroll/(tray.contentW-r.w)*100)}%`, r.w-8, r.y+18); fctx.textAlign = 'left';
+  }
+}
 function fitAll(){
   if(!wsLayout) computeLayout();
-  sizeCanvas();
+  sizeCanvas(); computeTray();
   const b = layoutBounds();
-  const padL = RULER_LEFT + 30, padT = WS_TITLE_H + RULER_TOP + 24, padR = 30, padB = 30;
+  const padL = RULER_LEFT + 30, padT = WS_TITLE_H + RULER_TOP + 24, padR = 30, padB = 30 + tray.h;
   const bw = Math.max(1, b.x1-b.x0), bh = Math.max(1, b.y1-b.y0);
   const scale = Math.max(WS.minScale, Math.min(WS.maxScale, (floorGeom.w-padL-padR)/bw, (floorGeom.h-padT-padB)/bh));
   state.view = { scale, x: padL + ((floorGeom.w-padL-padR) - bw*scale)/2 - b.x0*scale, y: padT + ((floorGeom.h-padT-padB) - bh*scale)/2 - b.y0*scale };
 }
 function fitTruck(block){
-  sizeCanvas();
-  const padL = RULER_LEFT + 30, padT = WS_TITLE_H + RULER_TOP + 24, padR = 30, padB = 30;
+  sizeCanvas(); computeTray();
+  const padL = RULER_LEFT + 30, padT = WS_TITLE_H + RULER_TOP + 24, padR = 30, padB = 30 + tray.h;
   const bw = block.c.L + (block.lane.boxes.length ? WS.laneGap + block.lane.w : 0), bh = Math.max(block.blockH, block.lane.h);
   const scale = Math.max(WS.minScale, Math.min(WS.maxScale, (floorGeom.w-padL-padR)/bw, (floorGeom.h-padT-padB)/bh));
   state.view = { scale, x: padL + ((floorGeom.w-padL-padR) - bw*scale)/2 - block.x*scale, y: padT + ((floorGeom.h-padT-padB) - bh*scale)/2 - block.y*scale };
@@ -2871,13 +2915,14 @@ function fitTruck(block){
 // pan (keeping the zoom) until this truck is on screen, if it isn't already
 function revealTruck(truckId){
   if(!state.view) return;
-  computeLayout(); sizeCanvas();
+  computeLayout(); sizeCanvas(); computeTray();
   const b = wsLayout.blocks.find(x=>x.t.id===truckId); if(!b) return;
   const g = geomFor(b); const x0 = g.offX - RULER_LEFT, y0 = g.offZ - RULER_TOP - WS_TITLE_H - 10, x1 = g.offX + b.c.L*g.scale, y1 = g.offZ + b.c.W*g.scale;
-  if(x0>=0 && y0>=0 && x1<=floorGeom.w && y1<=floorGeom.h) return;
-  if(b.c.L*g.scale > floorGeom.w-80 || b.c.W*g.scale > floorGeom.h-120){ fitTruck(b); return; }
+  const hAvail = floorGeom.h - tray.h;
+  if(x0>=0 && y0>=0 && x1<=floorGeom.w && y1<=hAvail) return;
+  if(b.c.L*g.scale > floorGeom.w-80 || b.c.W*g.scale > hAvail-120){ fitTruck(b); return; }
   state.view.x += Math.max(0, 40 - x0) - Math.max(0, x1 - (floorGeom.w-20));
-  state.view.y += Math.max(0, 60 - y0) - Math.max(0, y1 - (floorGeom.h-20));
+  state.view.y += Math.max(0, 60 - y0) - Math.max(0, y1 - (hAvail-20));
 }
 function zoomAt(px, py, factor){
   const v = state.view; const ns = Math.max(WS.minScale, Math.min(WS.maxScale, v.scale*factor));
@@ -2899,7 +2944,7 @@ function renderFloor(){
   if(!floorCanvas || !fctx) return;
   sizeCanvas();
   if(!fleetCache[state.activeTruckId] && state.trucks.length){ state.trucks.forEach(t=>{ if(!fleetCache[t.id]) fleetCache[t.id] = truckSummary(t); }); }
-  computeLayout();
+  computeLayout(); computeTray();
   if(!state.view) fitAll();
   const v = state.view;
   const cw = floorGeom.w, ch = floorGeom.h;
@@ -2942,22 +2987,10 @@ function renderFloor(){
       block.lane.boxes.forEach(b=>{ drawFreeBox(Object.assign({}, b, { x: lx+b.x, z: ly+b.z }), b.kind); });
     }
   });
-  // yard
   packResult = emptyPR; drawingTruckId = null;
+  // the docked tray of unassigned cases sits over the world; whatever's being dragged goes over that
+  floorGeom = savedGeom; drawTray(); packResult = emptyPR;
   floorGeom = worldGeom();
-  {
-    const y = wsLayout.yard;
-    const p = toPx(y.x, y.y);
-    fctx.fillStyle = '#3A4147'; fctx.font = '600 10px Oswald, sans-serif'; fctx.textAlign = 'left';
-    fctx.fillText(`UNASSIGNED · ${y.boxes.length}`, p.px, p.py - 6);
-    if(!y.boxes.length){
-      fctx.strokeStyle = 'rgba(27,31,35,0.18)'; fctx.setLineDash([6,5]); fctx.lineWidth = 1;
-      fctx.strokeRect(p.px, p.py, Math.max(60, 300*v.scale), Math.max(40, 120*v.scale)); fctx.setLineDash([]);
-      fctx.fillStyle = '#8A9096'; fctx.font = '400 10px IBM Plex Sans, sans-serif';
-      fctx.fillText('drag a case out here to take it off its truck', p.px+6, p.py+Math.max(40,120*v.scale)/2+3);
-    }
-    y.boxes.forEach(b=>drawFreeBox(b, 'free'));
-  }
   // things in flight
   if(drag && drag.free){
     floorGeom = worldGeom();
@@ -2992,7 +3025,7 @@ function renderFloor(){
   floorGeom = savedGeom; syncActiveGeom();
   // corner readout
   fctx.fillStyle = 'rgba(27,31,35,0.55)'; fctx.font = '400 10px IBM Plex Sans, sans-serif'; fctx.textAlign = 'right';
-  fctx.fillText(`${Math.round(v.scale*100)}%`, cw-8, ch-8); fctx.textAlign = 'left';
+  fctx.fillText(`${Math.round(v.scale*100)}%`, cw-8, ch - tray.h - 8); fctx.textAlign = 'left';
 }
 function drawTruckTitle(block, isActive){
   const g = floorGeom; const s = fleetCache[block.t.id];
@@ -3018,7 +3051,7 @@ function drawTruckTitle(block, isActive){
     fctx.fillStyle = '#9AA0A6'; fctx.font = '600 12px Oswald, sans-serif'; fctx.textAlign = 'center';
     fctx.fillText('EMPTY TRUCK', g.offX + block.c.L*g.scale/2, g.offZ + block.c.W*g.scale/2 - 4);
     fctx.font = '400 10px IBM Plex Sans, sans-serif';
-    fctx.fillText('drag cases in from the list or the yard', g.offX + block.c.L*g.scale/2, g.offZ + block.c.W*g.scale/2 + 10);
+    fctx.fillText('drag cases in from the list or the tray below', g.offX + block.c.L*g.scale/2, g.offZ + block.c.W*g.scale/2 + 10);
     fctx.textAlign = 'left';
   }
 }
@@ -3409,7 +3442,7 @@ function positionBarWithShift(d, cx){
 
 /* ---- interaction on the shared canvas: which truck (if any) is under the pointer decides
    what a press means. Inside a truck: the usual select / drag / lasso. On a loose case
-   (yard or lane): drag it anywhere. On a truck's name: move the truck. Empty space: pan. ---- */
+   (tray or lane): drag it anywhere. On a truck's name: move the truck. Empty space: pan. ---- */
 function blockAtWorld(wx, wy, slack){
   slack = slack||0;
   if(!wsLayout) return null;
@@ -3435,7 +3468,6 @@ function freeBoxAtWorld(wx, wy){
   if(!wsLayout) return null;
   const all = [];
   wsLayout.blocks.forEach(b=>b.lane.boxes.forEach(lb=>all.push({ box: Object.assign({}, lb, { x:b.x+b.laneX+lb.x, z:b.y+lb.z }), fromTruckId: b.t.id })));
-  wsLayout.yard.boxes.forEach(yb=>all.push({ box: yb, fromTruckId: null }));
   for(let i=all.length-1;i>=0;i--){ const {box} = all[i]; if(wx>=box.x && wx<=box.x+box.l && wy>=box.z && wy<=box.z+box.w) return all[i]; }
   return null;
 }
@@ -3456,6 +3488,18 @@ function handleFloorPointerDown(e){
   // pan: middle button, or space held, or a press on empty space
   const startPan = ()=>{ pan = { startX:px, startY:py, viewX:state.view.x, viewY:state.view.y, moved:false }; floorCanvas.style.cursor = 'grabbing'; };
   if(e.button===1 || spaceHeld){ e.preventDefault(); startPan(); return; }
+  if(py >= trayRect().y){
+    const it = trayItemAt(px, py);
+    if(it){
+      const additive = e.shiftKey || e.ctrlKey || e.metaKey;
+      if(additive) toggleInSelection(it.key, !isSelected(it.key)); else if(!isSelected(it.key) || state.selectedKeys.length<=1) setSelection([it.key], it.key); else state.selectedKey = it.key;
+      freeDrag = { key: it.key, item: it.item, fromTruckId: null, fromTray: true, offWx: it.item.L/2, offWz: it.item.W/2, wx: wx, wz: wy, moved:false, overBlock:null, overTray:true };
+      renderFloor(); renderIso(); renderSelBar();
+    } else {
+      trayScroll = { startX: px, scroll0: tray.scroll, moved:false };
+    }
+    return;
+  }
   const tb = titleBlockAt(px, py);
   if(tb){
     focusTruckLight(tb.t.id);
@@ -3526,7 +3570,12 @@ function handleFloorPointerMove(e){
     state.view.x = pan.viewX + dx; state.view.y = pan.viewY + dy;
     renderFloor(); return;
   }
+  if(trayScroll){
+    const dx = px - trayScroll.startX; if(Math.abs(dx)>2) trayScroll.moved = true;
+    tray.scroll = trayScroll.scroll0 - dx; renderFloor(); return;
+  }
   const { wx, wy } = worldOf(px, py);
+  const overTray = py >= trayRect().y;
   if(truckMove){
     const dx = wx - truckMove.startWx, dy = wy - truckMove.startWy;
     if(Math.abs(dx)+Math.abs(dy) > 2/state.view.scale) truckMove.moved = true;
@@ -3541,7 +3590,8 @@ function handleFloorPointerMove(e){
   if(freeDrag){
     freeDrag.moved = true;
     freeDrag.wx = wx - freeDrag.offWx; freeDrag.wz = wy - freeDrag.offWz;
-    freeDrag.overBlock = blockAtWorld(wx, wy, 0);
+    freeDrag.overBlock = overTray ? null : blockAtWorld(wx, wy, 0);
+    freeDrag.overTray = overTray; tray.hot = overTray && !!freeDrag.fromTruckId;
     floorCanvas.style.cursor = 'grabbing';
     renderFloor(); return;
   }
@@ -3561,13 +3611,14 @@ function handleFloorPointerMove(e){
   const origin = activeBlock();
   const over = blockAtWorld(wx, wy, 0);
   const isBarDrag = drag.boxes.length===1 && drag.boxes[0].isBar;
-  if(isBarDrag || (over && over.t.id===drag.originTruckId)){
-    drag.free = null; drag.overBlock = null;
+  if(isBarDrag || (over && !overTray && over.t.id===drag.originTruckId)){
+    drag.free = null; drag.overBlock = null; tray.hot = false;
     drag.valid = isBarDrag ? positionBarWithShift(drag, cpt.x) : positionGroup(drag, cpt.x, cpt.z);
   } else {
     // out of its truck: float with the cursor, in world space
     drag.free = { wx: wx - drag.offX, wz: wy - drag.offZ };
-    drag.overBlock = over && !drag.boxes.some(b=>b.isBar) ? over : null;
+    drag.overBlock = over && !overTray && !drag.boxes.some(b=>b.isBar) ? over : null;
+    tray.hot = overTray;
     drag.valid = true;
   }
   renderFloor();
@@ -3575,6 +3626,8 @@ function handleFloorPointerMove(e){
 function endDrag(e){
   document.body.classList.remove('dragging-case');
   if(floorCanvas) floorCanvas.style.cursor = '';
+  tray.hot = false;
+  if(trayScroll){ const ts = trayScroll; trayScroll = null; if(!ts.moved){ clearSelection(); afterSelectionChange(); } else renderFloor(); return; }
   if(pan){
     const p = pan; pan = null;
     if(!p.moved){ clearSelection(); renderFloor(); renderIso(); renderSelBar(); }
@@ -3589,23 +3642,20 @@ function endDrag(e){
   if(freeDrag){
     const fd = freeDrag; freeDrag = null;
     if(!fd.moved){ renderFloor(); return; }
-    const cs = caseById(fd.key);
     if(fd.overBlock){
       const target = fd.overBlock.t;
       pushUndo('move case');
       const exact = moveCaseTo(fd.key, target, fd.wx - fd.overBlock.x + fd.item.L/2, fd.wz - fd.overBlock.y + fd.item.W/2);
-      if(cs) delete cs.yard;
       focusTruckLight(target.id);
       persist(); recomputeAndRender();
       showToast(exact ? `Placed in ${target.name}` : `${target.name} — placed automatically (that exact spot wasn't free)`);
-    } else {
-      pushUndo(fd.fromTruckId ? 'out of truck' : 'move case');
-      if(fd.fromTruckId) assignCases([fd.key], null);
-      if(cs) cs.yard = { x: Math.round(fd.wx), z: Math.round(fd.wz) };
+    } else if(fd.fromTruckId){
+      pushUndo('out of truck');
+      assignCases([fd.key], null);
       setSelection([fd.key], fd.key);
       persist(); recomputeAndRender();
-      if(fd.fromTruckId) showToast('Out of the truck — now unassigned');
-    }
+      showToast('Out of the truck — now unassigned');
+    } else renderFloor();
     return;
   }
   if(marquee){ marquee = null; renderFloor(); renderIso(); renderSelBar(); renderLoadList(); return; }
@@ -3623,17 +3673,15 @@ function endDrag(e){
       d.boxes.forEach(b=>{
         const relX = b.x0 - prim.x0, relZ = b.z0 - prim.z0;
         moveCaseTo(b.key, target, d.free.wx - d.overBlock.x + relX + b.l/2, d.free.wz - d.overBlock.y + relZ + b.w/2);
-        const cs = caseById(b.key); if(cs) delete cs.yard;
       });
       focusTruckLight(target.id);
       persist(); recomputeAndRender();
       showToast(`Moved to ${target.name}`);
     } else {
-      // dropped in open space: out of the truck, parked right where it was let go
+      // dropped in open space or on the tray: out of the truck, into the tray
       pushUndo(d.boxes.length>1 ? d.boxes.length+' cases out of truck' : 'out of truck');
       const ids = d.boxes.map(b=>b.key);
       assignCases(ids, null);
-      d.boxes.forEach(b=>{ const cs = caseById(b.key); if(cs) cs.yard = { x: Math.round(d.free.wx + (b.x0 - prim.x0)), z: Math.round(d.free.wz + (b.z0 - prim.z0)) }; });
       setSelection(ids, ids[ids.length-1]);
       persist(); recomputeAndRender();
       showToast(`${ids.length} case${ids.length>1?'s':''} out of the truck — now unassigned`);
@@ -3675,6 +3723,7 @@ function handleFloorWheel(e){
   if(!state.view) return;
   e.preventDefault();
   const { px, py } = canvasPoint(e);
+  if(py >= trayRect().y && tray.items.length){ tray.scroll += (Math.abs(e.deltaX)>Math.abs(e.deltaY) ? e.deltaX : e.deltaY); renderFloor(); return; }
   if(e.ctrlKey || e.metaKey){ zoomAt(px, py, Math.max(0.5, Math.min(2, Math.exp(-e.deltaY*0.0025)))); }
   else { state.view.x -= e.deltaX; state.view.y -= e.deltaY; }
   renderFloor();
@@ -3682,6 +3731,7 @@ function handleFloorWheel(e){
 }
 function handleFloorDblClick(e){
   const { px, py } = canvasPoint(e);
+  if(py >= trayRect().y) return;
   const { wx, wy } = worldOf(px, py);
   const block = blockAtWorld(wx, wy, 0) || titleBlockAt(px, py);
   if(block){ fitTruck(block); } else fitAll();
@@ -3694,7 +3744,7 @@ function wireWorkspaceCanvas(){
     handleFloorPointerMove(e);
     if(!pan && !drag && !freeDrag && !truckMove && !marquee && state.view && wsLayout){
       const { px, py } = canvasPoint(e); const { wx, wy } = worldOf(px, py);
-      floorCanvas.style.cursor = spaceHeld ? 'grab' : titleBlockAt(px,py) ? 'move' : (blockAtWorld(wx,wy,0) || freeBoxAtWorld(wx,wy)) ? '' : 'grab';
+      floorCanvas.style.cursor = spaceHeld ? 'grab' : py >= trayRect().y ? (trayItemAt(px,py) ? 'grab' : '') : titleBlockAt(px,py) ? 'move' : (blockAtWorld(wx,wy,0) || freeBoxAtWorld(wx,wy)) ? '' : 'grab';
     }
   });
   floorCanvas.addEventListener('pointerup', endDrag);
@@ -3713,10 +3763,9 @@ function wireWorkspaceCanvas(){
 function tidyWorkspace(){
   pushUndo('tidy workspace');
   state.trucks.forEach(t=>{ delete t.ws; });
-  state.pool.forEach(cs=>{ delete cs.yard; });
   computeLayout(); fitAll();
   persist(); recomputeAndRender();
-  showToast('Tidied — trucks in a column, unassigned cases lined up in the yard');
+  showToast('Tidied — trucks back in a grid');
 }
 
 function selectedBox(){ return packResult.placed.find(b=>b.key===state.selectedKey) || null; }
@@ -4516,15 +4565,18 @@ function onTileDragMove(e){
   if(!tileDrag) return;
   tileDrag.ghostEl.style.left = e.clientX+'px'; tileDrag.ghostEl.style.top = e.clientY+'px';
   const cp = canvasPoint(e);
-  if(cp.inside && state.view && tileDrag.item){
+  const overTray = cp.inside && cp.py >= trayRect().y;
+  if(cp.inside && state.view && tileDrag.item && !overTray){
     const w = worldOf(cp.px, cp.py);
     tileDrag.previewBlock = blockAtWorld(w.wx, w.wy, 0);
     tileDrag.previewWorld = { wx: w.wx - tileDrag.item.L/2, wy: w.wy - tileDrag.item.W/2 };
     tileDrag.ghostEl.style.display = 'none';
+    tray.hot = false;
     renderFloor();
-  } else if(tileDrag.previewWorld){
+  } else if(tileDrag.previewWorld || overTray !== tray.hot){
     tileDrag.previewWorld = null; tileDrag.previewBlock = null;
     tileDrag.ghostEl.style.display = '';
+    tray.hot = overTray && !!tileDrag.fromTruckId;
     renderFloor();
   }
 }
@@ -4534,28 +4586,27 @@ function onTileDragUp(e){
   const cp = canvasPoint(e);
   if(cp.inside && state.view){
     const w = worldOf(cp.px, cp.py);
-    const block = blockAtWorld(w.wx, w.wy, 0);
-    const cs = caseById(td.caseId);
+    const block = cp.py >= trayRect().y ? null : blockAtWorld(w.wx, w.wy, 0);
     if(block){
       const target = block.t;
       pushUndo('move case');
       const exact = moveCaseTo(td.caseId, target, w.wx - block.x, w.wy - block.y);
-      if(cs) delete cs.yard;
       focusTruckLight(target.id);
       persist(); recomputeAndRender();
       showToast(exact ? `Moved to ${target.name}` : `${target.name} — placed automatically (that exact spot wasn't free)`);
-    } else {
-      pushUndo(td.fromTruckId ? 'out of truck' : 'move case');
-      if(td.fromTruckId) assignCases([td.caseId], null);
-      if(cs) cs.yard = { x: Math.round(w.wx - td.item.L/2), z: Math.round(w.wy - td.item.W/2) };
+    } else if(td.fromTruckId){
+      pushUndo('out of truck');
+      assignCases([td.caseId], null);
       setSelection([td.caseId], td.caseId);
       persist(); recomputeAndRender();
+      showToast('Out of the truck — now unassigned');
     }
   }
   endTileDrag();
 }
 function endTileDrag(silent){
   document.removeEventListener('pointermove', onTileDragMove);
+  tray.hot = false;
   const hadPreview = tileDrag && tileDrag.previewWorld;
   if(tileDrag){ tileDrag.ghostEl.remove(); tileDrag = null; }
   if(hadPreview) renderFloor();
@@ -4718,7 +4769,7 @@ function recomputeAndRender(){
   // truck) — the Inspector edits those too; floor-plan verbs only act on what's placed here
   state.selectedKeys = (state.selectedKeys||[]).filter(k=>packResult.placed.some(b=>b.key===k) || caseById(k));
   if(state.selectedKey && !state.selectedKeys.includes(state.selectedKey)) state.selectedKey = state.selectedKeys[state.selectedKeys.length-1] || null;
-  renderWorkspace();      // fleet summaries + the canvas (every truck, lanes, yard)
+  renderWorkspace();      // fleet summaries + the canvas (every truck, lanes, tray)
   renderStagingTray();
   renderLayerTabs();
   renderIso();
@@ -4992,7 +5043,7 @@ function openShortcutsModal(){
       ['Home', 'Fit everything in view'],
       ['Double-click a truck', 'Zoom to that truck (double-click empty space fits everything)'],
       ['Space + drag', 'Pan from anywhere, even over a case'],
-      ['Tidy', 'Line the trucks back up and park loose cases in the yard'],
+      ['Tidy', 'Line the trucks back up in a grid'],
     ]],
     ['Moving & editing', [
       ['Drag', 'Move the selection — drop it on another truck to move it there, or in open space to take it out of the truck'],
@@ -5180,6 +5231,16 @@ function rowsForPack(pr){
   });
   rows.forEach((r,i)=>{ r.n = i+1; });
   return rows;
+}
+// reading order inside one row: column by column from the nose (cases whose fronts line up
+// within ~8" share a column), top to bottom inside each column, lower before stacked. This is
+// how you'd read the pack standing at the doors — not "across the top, then across the next
+// band", which is what a plain top-to-bottom sort gives on a staggered back end
+function rowReadingOrder(boxes){
+  const sorted = boxes.slice().sort((a,b)=>a.x-b.x||a.z-b.z||a.y-b.y);
+  const cols = []; const TOL = 20;
+  sorted.forEach(b=>{ const last = cols[cols.length-1]; if(last && b.x - last.start <= TOL) last.boxes.push(b); else cols.push({ start:b.x, boxes:[b] }); });
+  return cols.flatMap(c=>c.boxes.sort((a,b)=>a.z-b.z||a.y-b.y));
 }
 function rowNumberOf(b){
   const rows = rowsForPack(packResult);
@@ -5384,13 +5445,13 @@ function cardLinesFor(t, pr){
     // sitting on top of it) is skipped from the loose count entirely — it's already
     // represented by its top partner's "Dbl Stack" entry, so counting it separately as
     // "loose" would double it into looking like a standalone item it isn't
-    r.boxes.slice().sort((a,b)=>a.z-b.z||a.y-b.y).forEach(b=>{
+    rowReadingOrder(r.boxes).forEach(b=>{
       const n = manifestLabel(b.key, b.item);
       const elevated = b.y > EPS;
       const isBottomOfStack = !elevated && r.boxes.some(o=>o!==b && Math.abs(o.x-b.x)<1 && Math.abs(o.z-b.z)<1 && o.y > b.y+EPS);
       if(isBottomOfStack) return;
       const key = n + (elevated ? '\u0000S' : '');
-      if(!counts[key]){ counts[key]={c:0, z:b.z, n, stacked:elevated}; order.push(key); }
+      if(!counts[key]){ counts[key]={c:0, seq:order.length, n, stacked:elevated}; order.push(key); }
       counts[key].c++;
     });
     // a stacked group's count is the number of PAIRS (each elevated box = one pair with
@@ -5399,9 +5460,9 @@ function cardLinesFor(t, pr){
     order.forEach(key=>{
       const g=counts[key];
       const text = g.stacked ? (g.c>1?`${g.c} `:'')+`Dbl Stack ${g.n}` : (g.c>1?`${g.c} `:'')+g.n;
-      parts.push({sort:g.z, text});
+      parts.push({sort:g.seq, text});
     });
-    parts.sort((a,b)=>a.sort-b.sort);
+    parts.sort((a,b)=>a.sort-b.sort);   // reading order (column by column, top to bottom), first appearance wins
     lines.push({cls:'crow', text: parts.map(p=>p.text).join(', ')});
     if(barHere) lines.push({cls:'crow cbar', text:'— load bar —'});
   });
@@ -5414,7 +5475,7 @@ function labelsHTML(trucks, size){
   trucks.forEach(t=>{
     const pr = withTruck(t, packLoad);
     const rows = rowsForPack(pr);
-    pr.placed.filter(b=>!b.isBar).sort((a,b)=>a.x-b.x||a.z-b.z||a.y-b.y).forEach(b=>{
+    rows.flatMap(r=>rowReadingOrder(r.boxes)).forEach(b=>{
       const m = boxMeta(pr,b);
       const row = rows.find(r=>r.boxes.includes(b));
       const label = state.labels[b.key] || b.item.name;

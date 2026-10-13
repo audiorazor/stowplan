@@ -6,7 +6,7 @@ Truck and sea-container load planner for touring production crews. One HTML file
 
 - **Inventory** (left): *Cases* — every case on the leg grouped by truck, Unassigned on top; *Catalog* — the sizes you can add.
 - **Inspector** (left, below): every detail of whatever is selected, one case or many.
-- **Workspace** (right): one canvas per leg. Every truck's floor plan sits in it, cases that don't fit line up beside their truck's doors, unassigned cases sit in a yard. Scroll to pan, ⌘/Ctrl+scroll to zoom, drag cases between trucks or out into the yard, drag a truck by its name to move it. *Tidy* lines everything back up.
+- **Workspace** (right): one canvas per leg. Every truck's floor plan sits in it, cases that don't fit line up beside their truck's doors, and unassigned cases sit in a tray docked to the bottom edge that stays put while you pan and zoom. Scroll to pan, ⌘/Ctrl+scroll to zoom, drag cases between trucks or down into the tray, drag a truck by its name to move it. *Tidy* lines the trucks back up.
 
 ## Layout
 
