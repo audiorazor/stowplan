@@ -1007,6 +1007,7 @@
             <input type="text" id="gearFilter" placeholder="Filter sizes: name, or 125 or 45x76">
             <button class="btn-ghost btn-accent" id="toggleAddForm" style="height:var(--ctl-h);padding:0 10px;white-space:nowrap;">+ New size</button>
           </div>
+          <div id="gearCleanup" class="inv-strip" style="display:none;"></div>
           <div id="gearList" class="inv-list"></div>
           <div id="gearEmpty" class="empty-note" style="display:none;margin:10px;">No sizes yet. Add one with <b>+ New size</b> — it'll be here for every future plan.</div>
         </div>
@@ -1112,7 +1113,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v108'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v109'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -2131,6 +2132,14 @@ function renderGearLibrary(){
   else { $('#gearEmpty').style.display='none'; }
   // how many cases of each size are on this leg — shown per row so you know what a catalog edit touches
   gearUseCounts = {}; (state.pool||[]).forEach(cs=>{ gearUseCounts[cs.libId] = (gearUseCounts[cs.libId]||0)+1; });
+  // clean-up offers: twins to fold together, sizes nothing uses
+  { const strip = $('#gearCleanup'); if(strip){
+    const dupes = catalogDuplicateGroups().reduce((n,g)=>n+g.length-1,0), unused = unusedCatalogEntries().length;
+    strip.style.display = (dupes||unused) ? 'flex' : 'none';
+    strip.innerHTML = `<span>Clean up:</span>${dupes?`<button id="gearMergeBtn" title="Same category and size — fold them into one entry; every case follows">Merge ${dupes} duplicate${dupes>1?'s':''}</button>`:''}${unused?`<button id="gearUnusedBtn" title="Sizes no case on any leg uses (built-in sizes are never removed)">Remove ${unused} unused</button>`:''}`;
+    if($('#gearMergeBtn')) $('#gearMergeBtn').onclick = ()=>{ pushUndo('merge duplicate sizes'); const n = mergeCatalogDuplicates(); persist(); renderAll(); showToast(`Folded ${n} duplicate size${n>1?'s':''} together`); };
+    if($('#gearUnusedBtn')) $('#gearUnusedBtn').onclick = ()=>{ const gone = unusedCatalogEntries(); pushUndo('remove unused sizes'); const ids = new Set(gone.map(g=>g.id)); state.gearLibrary = state.gearLibrary.filter(g=>!ids.has(g.id)); persist(); renderAll(); showToast(`Removed ${gone.length} unused size${gone.length>1?'s':''}`); };
+  } }
   const ordered = state.gearLibrary.slice().sort((a,b)=> b.L - a.L);
   cats().forEach(cat=>{
     const items = ordered.filter(g=>catOf(g)===cat.id && gearMatches(g,q));
@@ -2924,10 +2933,25 @@ function revealTruck(truckId){
   state.view.x += Math.max(0, 40 - x0) - Math.max(0, x1 - (floorGeom.w-20));
   state.view.y += Math.max(0, 60 - y0) - Math.max(0, y1 - (hAvail-20));
 }
+// a wall around the work: some of the trucks must always stay on screen, and you can't
+// zoom out past half of "fit everything"
+function clampView(){
+  const v = state.view; if(!v || !wsLayout) return;
+  const b = layoutBounds();
+  const cw = floorGeom.w, hAvail = floorGeom.h - tray.h;
+  const padL = RULER_LEFT + 30, padT = WS_TITLE_H + RULER_TOP + 24;
+  const fitScale = Math.min((cw-padL-60)/Math.max(1,b.x1-b.x0), (hAvail-padT-54)/Math.max(1,b.y1-b.y0));
+  const minScale = Math.max(WS.minScale, fitScale*0.5);
+  if(v.scale < minScale){ const k = minScale/v.scale; v.x = cw/2 - (cw/2 - v.x)*k; v.y = hAvail/2 - (hAvail/2 - v.y)*k; v.scale = minScale; }
+  const s = v.scale, keep = Math.min(220, cw*0.3), keepY = Math.min(160, hAvail*0.3);
+  v.x = Math.max(keep - b.x1*s, Math.min(cw - keep - b.x0*s, v.x));
+  v.y = Math.max(keepY - b.y1*s, Math.min(hAvail - keepY - b.y0*s, v.y));
+}
 function zoomAt(px, py, factor){
   const v = state.view; const ns = Math.max(WS.minScale, Math.min(WS.maxScale, v.scale*factor));
   const k = ns / v.scale;
   state.view = { scale: ns, x: px - (px - v.x)*k, y: py - (py - v.y)*k };
+  clampView();
 }
 function visibleBoxes(){
   if(state.activeLayer==='all') return packResult.placed;
@@ -2945,7 +2969,7 @@ function renderFloor(){
   sizeCanvas();
   if(!fleetCache[state.activeTruckId] && state.trucks.length){ state.trucks.forEach(t=>{ if(!fleetCache[t.id]) fleetCache[t.id] = truckSummary(t); }); }
   computeLayout(); computeTray();
-  if(!state.view) fitAll();
+  if(!state.view) fitAll(); else clampView();
   const v = state.view;
   const cw = floorGeom.w, ch = floorGeom.h;
   fctx.clearRect(0,0,cw,ch);
@@ -3568,7 +3592,7 @@ function handleFloorPointerMove(e){
     const dx = px - pan.startX, dy = py - pan.startY;
     if(Math.abs(dx)+Math.abs(dy) > 2) pan.moved = true;
     state.view.x = pan.viewX + dx; state.view.y = pan.viewY + dy;
-    renderFloor(); return;
+    clampView(); renderFloor(); return;
   }
   if(trayScroll){
     const dx = px - trayScroll.startX; if(Math.abs(dx)>2) trayScroll.moved = true;
@@ -3725,7 +3749,7 @@ function handleFloorWheel(e){
   const { px, py } = canvasPoint(e);
   if(py >= trayRect().y && tray.items.length){ tray.scroll += (Math.abs(e.deltaX)>Math.abs(e.deltaY) ? e.deltaX : e.deltaY); renderFloor(); return; }
   if(e.ctrlKey || e.metaKey){ zoomAt(px, py, Math.max(0.5, Math.min(2, Math.exp(-e.deltaY*0.0025)))); }
-  else { state.view.x -= e.deltaX; state.view.y -= e.deltaY; }
+  else { state.view.x -= e.deltaX; state.view.y -= e.deltaY; clampView(); }
   renderFloor();
   clearTimeout(handleFloorWheel._t); handleFloorWheel._t = setTimeout(persist, 400);
 }
@@ -5216,12 +5240,17 @@ function rowsForPack(pr){
   // (sequential, non-overlapping segments by construction), so comparing wall ranges instead
   // of the actual boxes would mean two items in different walls could never merge no matter
   // how close together they physically sit
+  // A row is everything that goes in at the same depth: cases whose fronts line up within
+  // ~8" of each other, read from the nose back. That's how the pack is loaded — the next
+  // "row" is whatever starts next, even if a long case in the previous one runs alongside it.
+  // (Earlier versions merged anything whose lengths overlapped, which turned a staggered back
+  // end into one giant row.)
   const candidates = pr.placed.filter(b=>!b.isBar).map(b=>({ b, start:b.x, end:b.x+b.l }));
-  candidates.sort((a,c)=>a.start-c.start);
-  const rows = [];
+  candidates.sort((a,c)=>a.start-c.start || a.b.z-c.b.z);
+  const rows = []; const TOL = 20;
   candidates.forEach(cand=>{
     const last = rows[rows.length-1];
-    if(last && cand.start < last.end-EPS){
+    if(last && cand.start - last.start <= TOL){
       last.end = Math.max(last.end, cand.end);
       last.depth = Math.max(last.depth, cand.end-last.start);
       last.boxes.push(cand.b);
@@ -5429,6 +5458,20 @@ function truckSheetBlock(t, pr, idx){
 }
 
 // one text line per row of the truck
+// the card text for one truck as plain editable lines (rows + load bars), without the
+// truck-name header and the NOT LOADED line, which are always generated
+function cardTextFor(t, pr){ return cardLinesFor(t, pr).filter(l=>l.cls!=='chead' && l.cls!=='crow cunfit').map(l=>l.text).join('\n'); }
+// what actually prints: the person's edited text if they changed it for THIS pack, else the generated lines.
+// An edit remembers the generated text it replaced, so it drops away on its own once the pack changes.
+function cardLinesForPrint(t, pr){
+  const gen = cardLinesFor(t, pr);
+  const ov = t.prefs && t.prefs.cardText;
+  if(!ov || ov.sig !== cardTextFor(t, pr)) return gen;
+  const out = [gen[0]];
+  ov.text.split('\n').forEach(ln=>{ const tx = ln.trim(); if(!tx) return; out.push({ cls: /^[—-]+\s*load bar/i.test(tx) ? 'crow cbar' : 'crow', text: tx }); });
+  gen.filter(l=>l.cls==='crow cunfit').forEach(l=>out.push(l));
+  return out;
+}
 function cardLinesFor(t, pr){
   const rows = rowsForPack(pr);
   const bars = pr.placed.filter(b=>b.isBar).map(b=>b.x).sort((a,b)=>a-b);
@@ -5517,7 +5560,7 @@ function openPrintView(opts){
 
   if(opts.card){
     const lines = [];
-    packs.forEach(p=>lines.push(...cardLinesFor(p.t,p.pr)));
+    packs.forEach(p=>lines.push(...cardLinesForPrint(p.t,p.pr)));
     body += `<div id="cardsrc" style="display:none">${lines.map(l=>`<div class="${l.cls}">${esc(l.text)}</div>`).join('')}</div><div id="cardsout"></div>`;
   }
 
@@ -5626,10 +5669,14 @@ function openPrintModal(){
       <div><select id="p_page">${pageOpts}</select></div>
     </div>
     <label class="opt"><input type="checkbox" id="p_card" checked> <b>Pocket card</b> — one text line per row</label>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0 0 8px 22px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0 0 6px 22px;">
       <div><select id="p_csize">${cardOpts}</select></div>
       <div><select id="p_cfont"><option value="7">7 pt text</option><option value="8" selected>8 pt text</option><option value="9">9 pt text</option><option value="10">10 pt text</option></select></div>
     </div>
+    <details id="p_cardEdit" style="margin:0 0 8px 22px;"><summary style="font-size:12px;color:var(--steel);cursor:pointer;">Edit the card text before printing…</summary>
+      <div style="font-size:11px;color:var(--ink-soft);margin:4px 0 6px;">One line per row, nose to doors. Your edits print instead of the generated text and are kept until the pack changes.</div>
+      <div id="p_cardTexts"></div>
+    </details>
     <label class="opt"><input type="checkbox" id="p_labels"> <b>Case labels</b> — one per case</label>
     <div style="margin:0 0 8px 22px;"><select id="p_lsize">${labelOpts}</select></div>
     <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Card text flows onto extra cards with ↓↓↓ arrows when a run is long, and uses each item's short name where you've given one.</div>
@@ -5637,7 +5684,32 @@ function openPrintModal(){
   `);
   back.querySelector('.modal').classList.add('wide');
   back.querySelector('#p_cancel').onclick = ()=>back.remove();
+  // per-truck editable card text
+  const renderCardTexts = ()=>{
+    syncActiveTruck();
+    const trucks = $('#p_scope').value==='all' ? state.trucks : [activeTruck()];
+    const wrap = back.querySelector('#p_cardTexts');
+    wrap.innerHTML = trucks.map(t=>{
+      const pr = withTruck(t, packLoad); const gen = cardTextFor(t, pr);
+      const ov = t.prefs && t.prefs.cardText && t.prefs.cardText.sig===gen ? t.prefs.cardText.text : null;
+      return `<div style="margin-bottom:6px;"><div style="display:flex;align-items:center;gap:8px;font-size:12px;"><b>${esc(t.name)}</b>${ov!==null?'<span class="insp-chip warn">edited</span>':''}<span style="flex:1"></span><button type="button" class="insp-lnk" data-cardreset="${t.id}">reset to generated</button></div><textarea data-cardtext="${t.id}" data-gen="${esc(gen).replace(/"/g,'&quot;')}" spellcheck="false" style="width:100%;box-sizing:border-box;min-height:${Math.min(220, 34 + 16*(ov!==null?ov:gen).split('\n').length)}px;font:12px/1.35 ui-monospace,Menlo,monospace;padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);">${esc(ov!==null?ov:gen)}</textarea></div>`;
+    }).join('');
+    wrap.querySelectorAll('[data-cardreset]').forEach(b=>{ b.onclick = ()=>{ const ta = wrap.querySelector(`[data-cardtext="${b.getAttribute('data-cardreset')}"]`); ta.value = ta.getAttribute('data-gen'); }; });
+    wrap.querySelectorAll('textarea').forEach(ta=>{ ta.onkeydown = e=>e.stopPropagation(); });
+  };
+  renderCardTexts();
+  $('#p_scope').onchange = renderCardTexts;
+  const saveCardTexts = ()=>{
+    back.querySelectorAll('[data-cardtext]').forEach(ta=>{
+      const t = state.trucks.find(x=>x.id===ta.getAttribute('data-cardtext')); if(!t) return;
+      const gen = ta.getAttribute('data-gen'); const v = ta.value.replace(/\r/g,'');
+      if(!t.prefs) t.prefs = {};
+      if(v.trim()===gen.trim()) delete t.prefs.cardText; else t.prefs.cardText = { text: v, sig: gen };
+    });
+    const at = activeTruck(); if(at) state.prefs = at.prefs;   // prefs is mirrored onto state for the truck being edited
+  };
   back.querySelector('#p_go').onclick = ()=>{
+    saveCardTexts();
     const opts = {
       project: $('#p_project').value.trim(),
       sheets: $('#p_sheets').checked, sheetLayout: $('#p_layout').value, page: $('#p_page').value,
@@ -5899,12 +5971,50 @@ async function splitPdfToPages(file, pageIndices){
 }
 
 // find a library item with this footprint (either orientation) and height, within ~1 in
-function findLibBySize(Lcm, Wcm, Hcm, name){
+function findLibBySize(Lcm, Wcm, Hcm, name, category){
   const tol = 2.6;
   const same = (a,b)=>Math.abs(a-b)<=tol;
-  const byName = name ? state.gearLibrary.find(g=> g.name.toUpperCase()===name.toUpperCase() && same(g.H,Hcm) && ((same(g.L,Lcm)&&same(g.W,Wcm))||(same(g.L,Wcm)&&same(g.W,Lcm)))) : null;
+  const dimsMatch = g => g.shape!=='trapezoid' && same(g.H,Hcm) && ((same(g.L,Lcm)&&same(g.W,Wcm))||(same(g.L,Wcm)&&same(g.W,Lcm)));
+  const byName = name ? state.gearLibrary.find(g=> g.name.toUpperCase()===name.toUpperCase() && dimsMatch(g)) : null;
   if(byName) return byName;
-  return state.gearLibrary.find(g=> same(g.H,Hcm) && ((same(g.L,Lcm)&&same(g.W,Wcm))||(same(g.L,Wcm)&&same(g.W,Lcm))) && (g.stock || !g.name || g.name===(catById(catOf(g)).short||'').toUpperCase()) ) || null;
+  // same category and size, whatever it's called — one entry per size per category, never a twin
+  if(category){ const byCat = state.gearLibrary.find(g=> catOf(g)===category && dimsMatch(g)); if(byCat) return byCat; }
+  return state.gearLibrary.find(g=> dimsMatch(g) && (g.stock || !g.name || g.name===(catById(catOf(g)).short||'').toUpperCase()) ) || null;
+}
+// twins in the catalog: same category, shape and size (within ~1"). Returns groups [keep, ...dupes]
+function catalogDuplicateGroups(){
+  const tol = 2.6; const same = (a,b)=>Math.abs(a-b)<=tol;
+  const groups = []; const seen = new Set();
+  state.gearLibrary.forEach(g=>{
+    if(seen.has(g.id)) return;
+    const twins = state.gearLibrary.filter(o=> o!==g && !seen.has(o.id) && catOf(o)===catOf(g) && (o.shape||'')===(g.shape||'') && same(o.L,g.L) && same(o.W,g.W) && same(o.H,g.H) && (g.shape!=='trapezoid' || (same(o.depthA||0,g.depthA||0) && same(o.depthB||0,g.depthB||0))));
+    if(!twins.length) return;
+    const all = [g].concat(twins);
+    // keep the stock entry if there is one, else the one with the most cases, else the oldest
+    const useCount = {}; state.tabs.forEach(tab=>(tab.pool||[]).forEach(cs=>{ useCount[cs.libId]=(useCount[cs.libId]||0)+1; })); (state.pool||[]).forEach(cs=>{ useCount[cs.libId]=(useCount[cs.libId]||0)+1; });
+    all.sort((a,b)=>(b.stock?1:0)-(a.stock?1:0) || (useCount[b.id]||0)-(useCount[a.id]||0));
+    all.forEach(x=>seen.add(x.id));
+    groups.push(all);
+  });
+  return groups;
+}
+// fold every twin into the kept entry; cases follow, keeping their printed weight if the twin's differed
+function mergeCatalogDuplicates(){
+  const groups = catalogDuplicateGroups(); if(!groups.length) return 0;
+  syncActiveTab();
+  let merged = 0;
+  const remap = {}; const wtOf = {};
+  groups.forEach(all=>{ const keep = all[0]; all.slice(1).forEach(d=>{ remap[d.id] = keep.id; wtOf[d.id] = d.weight; merged++; if(!keep.name && d.name) keep.name = d.name; if(!keep.short && d.short) keep.short = d.short; }); });
+  const fix = cs=>{ const to = remap[cs.libId]; if(!to) return; const keep = state.gearLibrary.find(g=>g.id===to); if(typeof cs.weight!=='number' && keep && Math.abs((wtOf[cs.libId]||keep.weight)-keep.weight)>0.5) cs.weight = wtOf[cs.libId]; cs.libId = to; };
+  state.tabs.forEach(tab=>{ (tab.pool||[]).forEach(fix); (tab.trucks||[]).forEach(t=>{ if(t.prefs) Object.keys(remap).forEach(d=>{ if(t.prefs[d]!==undefined){ if(t.prefs[remap[d]]===undefined) t.prefs[remap[d]] = t.prefs[d]; delete t.prefs[d]; } }); }); });
+  (state.pool||[]).forEach(fix);
+  state.gearLibrary = state.gearLibrary.filter(g=>!remap[g.id]);
+  return merged;
+}
+// sizes nobody uses on any leg (never the built-in ones)
+function unusedCatalogEntries(){
+  const used = new Set(); state.tabs.forEach(tab=>(tab.pool||[]).forEach(cs=>used.add(cs.libId))); (state.pool||[]).forEach(cs=>used.add(cs.libId));
+  return state.gearLibrary.filter(g=>!g.stock && !used.has(g.id));
 }
 function guessCategory(name){
   const n = (name||'').toLowerCase();
@@ -6013,7 +6123,7 @@ function applyPhotoImport(parsed, opts){
       const same = (a,b)=>Math.abs(a-b)<=2.6;
       let lib = bx._trap
         ? (state.gearLibrary.find(g=>g.shape==='trapezoid' && same(g.L,Lcm) && same(g.H,Hcm) && same(g.depthA,bx._dA) && same(g.depthB,bx._dB)) || null)
-        : findLibBySize(Lcm, Wcm, Hcm, null);
+        : findLibBySize(Lcm, Wcm, Hcm, null, category);
       if(lib && lib.shape==='trapezoid' && !bx._trap) lib = null; // a rectangle never borrows a trapezoid's entry
       if(lib && bx._catEdited && catOf(lib)!==category) lib = null; // a category picked in the review wins over a same-size match
       if(!lib){
@@ -6048,9 +6158,10 @@ function applyPhotoImport(parsed, opts){
   });
   state.invTab = 'cases'; state.invFilter = { truck: opts.autoAssign ? '' : '_none' };
   state.view = null;   // show the whole leg after an import
+  const folded = mergeCatalogDuplicates();
   persist(); renderAll();
   const dest = opts.autoAssign ? ` into ${trucksTouched} truck${trucksTouched!==1?'s':''}` : ', unassigned';
-  showToast(`Added ${cases} cases${dest} from ${sheets} sheet${sheets!==1?'s':''}${newTypes?`, ${newTypes} new library size${newTypes>1?'s':''}`:''}${opts.autoAssign?'':' — assign them from the Cases list'}`);
+  showToast(`Added ${cases} cases${dest} from ${sheets} sheet${sheets!==1?'s':''}${newTypes?`, ${newTypes} new catalog size${newTypes>1?'s':''}`:''}${folded?` (${folded} duplicate size${folded>1?'s':''} folded together)`:''}${opts.autoAssign?'':' — assign them from the Cases list'}`);
 }
 
 function openPhotoImportModal(){
