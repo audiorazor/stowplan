@@ -64,7 +64,7 @@ jobs:
         run: reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" /t REG_DWORD /f /v AllowDevelopmentWithoutDevLicense /d 1
       - name: Build Windows installer + portable exe
         shell: bash
-        run: npx electron-builder --win --x64 2>&1 | tee build-log.txt; test ${PIPESTATUS[0]} -eq 0
+        run: npx electron-builder --win --x64 --publish never 2>&1 | tee build-log.txt; test ${PIPESTATUS[0]} -eq 0
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
       - name: Keep the log where it can be read (on failure)
