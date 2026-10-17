@@ -1063,6 +1063,7 @@
               <div class="tb-menu" id="packMenu" hidden style="left:0;right:auto;min-width:300px;">
                 <label class="tb-menu-row" style="cursor:pointer;"><span><b>Snap new cases into place</b><br><small style="color:var(--ink-soft)">Off: new cases wait beside the truck until you drag them in</small></span><input type="checkbox" id="autoPlaceNewChk" checked></label>
                 <label class="tb-menu-row" style="cursor:pointer;"><span><b>Auto-stack</b><br><small style="color:var(--ink-soft)">Let the packer stack cases that allow it. Off: you stack by dragging</small></span><input type="checkbox" id="autoStackChk"></label>
+                <label class="tb-menu-row" style="cursor:pointer;"><span><b>Scroll wheel</b><br><small style="color:var(--ink-soft)">Auto: a mouse wheel zooms, a trackpad pans (pinch zooms). Shift+wheel pans sideways</small></span><select id="wheelModeSel"><option value="auto">Auto</option><option value="zoom">Zoom</option><option value="pan">Pan</option></select></label>
               </div>
             </span>
             <button class="btn-ghost" id="resetManualBtn" style="padding:4px 8px;" title="Unpin every case in this truck and let the packer rebuild the walls">Auto-place all</button>
@@ -1144,7 +1145,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v112'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v113'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -1596,6 +1597,7 @@ async function loadFromStorage(){
       state.isoCollapsed = parsed.isoCollapsed === undefined ? true : !!parsed.isoCollapsed; // folded unless they've opened it
       state.invTab = parsed.invTab==='catalog' ? 'catalog' : 'cases';
       state.sideCollapsed = !!parsed.sideCollapsed;
+      state.wheelMode = parsed.wheelMode || 'auto';
       state.printOpts = parsed.printOpts || null;
       state.invFold = parsed.invFold || {};
       state.invFilter = { truck: (parsed.invFilter||{}).truck||'' };
@@ -1653,7 +1655,7 @@ function persist(){
     try{ await store.set('gear-library', JSON.stringify(state.gearLibrary)); }catch(e){ ok = false; }
     try{
       await store.set('app-config', JSON.stringify({
-        units: state.units, tabs: state.tabs, activeTabId: state.activeTabId, projectName: state.projectName||'', collapsed: state.collapsed, categories: state.categories, autoStack: !!state.autoStack, showFleetPlans: !!state.showFleetPlans, autoPlaceNew: state.autoPlaceNew!==false, isoCollapsed: !!state.isoCollapsed, sideCollapsed: !!state.sideCollapsed, printOpts: state.printOpts||null, invTab: state.invTab||'cases', invFold: state.invFold||{}, invFilter: { truck: (state.invFilter||{}).truck||'' }
+        units: state.units, tabs: state.tabs, activeTabId: state.activeTabId, projectName: state.projectName||'', collapsed: state.collapsed, categories: state.categories, autoStack: !!state.autoStack, showFleetPlans: !!state.showFleetPlans, autoPlaceNew: state.autoPlaceNew!==false, isoCollapsed: !!state.isoCollapsed, sideCollapsed: !!state.sideCollapsed, wheelMode: state.wheelMode||'auto', printOpts: state.printOpts||null, invTab: state.invTab||'cases', invFold: state.invFold||{}, invFilter: { truck: (state.invFilter||{}).truck||'' }
       }));
     }catch(e){ ok = false; }
     setSaveState(ok ? 'saved' : 'error');
@@ -3792,7 +3794,13 @@ function handleFloorWheel(e){
   e.preventDefault();
   const { px, py } = canvasPoint(e);
   if(py >= trayRect().y && tray.items.length){ tray.scroll += (Math.abs(e.deltaX)>Math.abs(e.deltaY) ? e.deltaX : e.deltaY); renderFloor(); return; }
-  if(e.ctrlKey || e.metaKey){ zoomAt(px, py, Math.max(0.5, Math.min(2, Math.exp(-e.deltaY*0.0025)))); }
+  // a mouse wheel zooms (CAD habit); a trackpad's two-finger scroll pans and its pinch zooms.
+  // Telling them apart: a wheel notch is a big, whole-number step with no sideways part.
+  const pref = state.wheelMode || 'auto';
+  const looksLikeWheel = e.deltaX===0 && Math.abs(e.deltaY)>=40 && Number.isInteger(e.deltaY) && e.deltaMode===0;
+  const wantZoom = e.ctrlKey || e.metaKey || (pref==='zoom') || (pref==='auto' && looksLikeWheel && !e.shiftKey);
+  if(wantZoom){ zoomAt(px, py, Math.max(0.5, Math.min(2, Math.exp(-e.deltaY*(looksLikeWheel ? 0.0018 : 0.0025))))); }
+  else if(e.shiftKey && e.deltaX===0){ state.view.x -= e.deltaY; clampView(); }
   else { state.view.x -= e.deltaX; state.view.y -= e.deltaY; clampView(); }
   renderFloor();
   clearTimeout(handleFloorWheel._t); handleFloorWheel._t = setTimeout(persist, 400);
@@ -4979,6 +4987,7 @@ function renderAll(){
   if($('#f_cat')) renderCatOptions();
   if($('#autoStackChk')) $('#autoStackChk').checked = !!state.autoStack;
   if($('#autoPlaceNewChk')) $('#autoPlaceNewChk').checked = state.autoPlaceNew!==false;
+  if($('#wheelModeSel')) $('#wheelModeSel').value = state.wheelMode || 'auto';
   $('#unitsSelect').value = state.units;
   renderClearanceInput();
   renderGearLibrary();
@@ -5228,8 +5237,9 @@ function openShortcutsModal(){
       ['Esc', 'Clear the selection'],
     ]],
     ['Workspace', [
-      ['Scroll / drag empty space', 'Pan'],
-      [mod+' + scroll, or pinch', 'Zoom at the cursor'],
+      ['Mouse wheel', 'Zoom at the cursor (Shift+wheel pans sideways)'],
+      ['Trackpad two-finger scroll / drag empty space', 'Pan'],
+      ['Pinch, or '+mod+' + scroll', 'Zoom at the cursor'],
       ['+ / −', 'Zoom in / out'],
       ['Home', 'Fit everything in view'],
       ['Double-click a truck', 'Zoom to that truck (double-click empty space fits everything)'],
@@ -6723,6 +6733,8 @@ function wireEvents(){
   };
   $('#autoPlaceNewChk').onchange = (e)=>{ state.autoPlaceNew = e.target.checked; persist(); };
   $('#autoStackChk').onchange = (e)=>{ pushUndo('auto-stack setting'); state.autoStack = e.target.checked; persist(); recomputeAndRender(); };
+  $('#wheelModeSel').value = state.wheelMode || 'auto';
+  $('#wheelModeSel').onchange = (e)=>{ state.wheelMode = e.target.value; persist(); };
   $('#gearFilter').oninput = ()=>renderGearLibrary();
   $('#gearFilter').onkeydown = e=>{ e.stopPropagation(); if(e.key==='Escape'){ $('#gearFilter').value=''; renderGearLibrary(); } };
   $('#toggleAddForm').onclick = ()=>openGearFormModal(null);
