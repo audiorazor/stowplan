@@ -824,6 +824,8 @@
   .hint{ font-size:12px; }
   .cat-head{ font-size:12px; letter-spacing:.05em; }
   .adv-grid label, .modal label, .ph-head{ text-transform:none !important; letter-spacing:0 !important; font-size:11px !important; color:var(--ink-soft); }
+  .modal label.opt{ display:flex; align-items:center; gap:8px; font-size:13px !important; color:var(--ink); margin:8px 0 4px; cursor:pointer; }
+  .modal label.opt input{ margin:0; }
   .pin-tag, .unplaced-tag, .pill, .status-pill, .stock-tag{ text-transform:none; letter-spacing:0; }
   .metric-title > span{ text-transform:none; letter-spacing:0; }
   .metric-title > span:last-child{ font-variant-numeric:tabular-nums; }
@@ -1145,7 +1147,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v114'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v115'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -5816,15 +5818,21 @@ function openPrintView(opts){
   if(opts.sheets){
     const header = `<div class="sheethead"><div class="proj">${esc(opts.project||'')}</div><div class="ptitle">TRUCK PACK</div><div class="pdate">${esc(dateStr)}</div></div>`;
     if(opts.sheetLayout==='one'){
-      // each block ≈ (drawing height for the widest truck) + title; estimate per-page count
-      const maxRatio = Math.max(...packs.map(p=>(p.pr.container.W+28)/(p.pr.container.L+8)));
-      const blockH = (pw-1.5)*maxRatio + 0.4;
-      const perPage = Math.max(1, Math.floor((ph-1.3)/blockH));
-      for(let i=0;i<packs.length;i+=perPage){
+      // each truck's block is sized on its own (a layer-2 truck draws twice as tall, an unfit
+      // line adds a row), and a truck that won't fit in what's left of the page starts the next
+      // one — never cut off at the bottom
+      const drawW = pw - 1.5;
+      const blockH = p => { const c = p.pr.container; const svgH = drawW*(c.W+28)/(c.L+8); const l2 = p.pr.layers && p.pr.layers.length>1; return svgH*(l2?2:1) + (l2?0.24:0) + 0.32 + (p.pr.unplaced.length?0.16:0); };
+      const avail = ph - 0.55 - 0.45 - 0.3;   // page minus margins, header and footer
+      const pages = []; let cur = [], used = 0;
+      packs.forEach(p=>{ const h = blockH(p) + 0.1; if(cur.length && used + h > avail){ pages.push(cur); cur = []; used = 0; } cur.push(p); used += h; });
+      if(cur.length) pages.push(cur);
+      let n = 0;
+      pages.forEach((pg,pi)=>{
         body += `<section class="sheet packsheet">${header}<div class="trucks">` +
-          packs.slice(i,i+perPage).map((p,j)=>truckSheetBlock(p.t,p.pr,i+j)).join('') +
-          `</div><div class="pfoot">PG ${Math.floor(i/perPage)+1}</div></section>`;
-      }
+          pg.map(p=>truckSheetBlock(p.t,p.pr,n++)).join('') +
+          `</div><div class="pfoot">PG ${pi+1} / ${pages.length}</div></section>`;
+      });
     } else {
       packs.forEach((p,i)=>{ body += `<section class="sheet packsheet single">${header}<div class="trucks one">${truckSheetBlock(p.t,p.pr,i)}</div><div class="pfoot">${esc(p.t.name)}</div></section>`; });
     }
