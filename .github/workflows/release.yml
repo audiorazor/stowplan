@@ -32,14 +32,20 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
       - name: Package (tar, not zip — Archive Utility chokes on builder's zip)
         run: tar -czf StowPlan-AppleSilicon-Mac.tar.gz -C dist/mac-arm64 StowPlan.app
+      - name: Bare HTML for iPad / browser use
+        run: cp app/stowplan.html stowplan.html
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: StowPlan ${{ steps.ver.outputs.tag }}
-          files: StowPlan-AppleSilicon-Mac.tar.gz
+          files: |
+            StowPlan-AppleSilicon-Mac.tar.gz
+            stowplan.html
           body: |
-            Apple Silicon Mac build (tar.gz) and Windows x64 build (Setup installer + Portable exe). Unsigned: macOS may need right-click → Open, Windows SmartScreen may need "More info → Run anyway".
+            Apple Silicon Mac build (tar.gz), Windows x64 build (Setup installer + Portable exe), and the bare `stowplan.html` for iPad or any browser. Unsigned: macOS may need right-click → Open, Windows SmartScreen may need "More info → Run anyway".
+
+            iPad: open https://github.com/audiorazor/stowplan/releases/latest/download/stowplan.html in Safari, then Share → Add to Home Screen.
 
             ```
             cd ~/Downloads && curl -LO https://github.com/audiorazor/stowplan/releases/download/${{ steps.ver.outputs.tag }}/StowPlan-AppleSilicon-Mac.tar.gz
