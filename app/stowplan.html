@@ -1145,7 +1145,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v113'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v114'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -1808,8 +1808,10 @@ function overlaps(a,b){
   // two trapezoids get a real check against their actual outlines, so a flipped pair can
   // nest flush (bounding boxes overlapping, true shapes not) without being wrongly flagged —
   // everything else keeps the plain rectangle check, unchanged
-  if(a.item && a.item.shape==='trapezoid' && b.item && b.item.shape==='trapezoid' && Math.abs(a.y-b.y)<EPS){
-    return polygonsOverlap(trapezoidCorners(a), trapezoidCorners(b));
+  if((hasOutline(a.item) || hasOutline(b.item)) && a.item && b.item && Math.abs(a.y-b.y)<EPS){
+    const bb = !(a.x+a.l <= b.x+EPS || b.x+b.l <= a.x+EPS || a.z+a.w <= b.z+EPS || b.z+b.w <= a.z+EPS);
+    if(!bb) return false;
+    return polygonsOverlap(shapeCorners(a), shapeCorners(b));
   }
   return !(a.x+a.l <= b.x+EPS || b.x+b.l <= a.x+EPS ||
            a.y+a.h <= b.y+EPS || b.y+b.h <= a.y+EPS ||
@@ -1832,6 +1834,13 @@ function trapezoidLocalCorners(item, flip){
 // own end and never write over each other's angled edge
 function labelRectFor(b, inset){
   inset = inset || 0;
+  if(b.item.shape==='poly'){
+    const r = inscribedRectLocal(b.item, !!b.flip);
+    const u0 = r.u0+inset, v0 = r.v0+inset, ul = Math.max(1, r.ul-2*inset), vl = Math.max(1, r.vl-2*inset);
+    if(!b.rot) return { x:b.x+u0, z:b.z+v0, l:ul, w:vl };
+    // true 90° turn: local (u,v) → (W-v, u)
+    return { x:b.x + (b.item.W - (v0+vl)), z:b.z + u0, l:vl, w:ul };
+  }
   if(b.item.shape!=='trapezoid') return { x:b.x+inset, z:b.z+inset, l:b.l-2*inset, w:b.w-2*inset };
   const L = b.item.L, dA = b.item.depthA, dB = b.item.depthB, max = Math.max(dA,dB);
   const wideAtStart = b.flip ? (dB >= dA) : (dA >= dB);   // flipped: the depth at u=0 is dB
@@ -1842,9 +1851,94 @@ function labelRectFor(b, inset){
   const r = { u0: u0+inset, v0: v0+inset, ul: (u1-u0)-2*inset, vl: (v1-v0)-2*inset };
   return b.rot ? { x:b.x+r.v0, z:b.z+r.u0, l:r.vl, w:r.ul } : { x:b.x+r.u0, z:b.z+r.v0, l:r.ul, w:r.vl };
 }
-function trapezoidCorners(b){
-  const pts = trapezoidLocalCorners(b.item, !!b.flip);
-  return pts.map(p => b.rot ? {x:b.x+p.v, z:b.z+p.u} : {x:b.x+p.u, z:b.z+p.v});
+function trapezoidCorners(b){ return shapeCorners(b); }
+/* ---- outlines: a plain box is its rectangle; a trapezoid or any other polygon ("poly", a list
+   of corner points in its own L×W frame) is its real footprint. Everything that cares about
+   collisions, labels or drawing asks shapeCorners() and never looks at the shape name. ---- */
+function hasOutline(item){ return !!item && (item.shape==='trapezoid' || item.shape==='poly'); }
+function localCorners(item, flip){
+  if(item.shape==='trapezoid') return trapezoidLocalCorners(item, flip);
+  if(item.shape==='poly' && item.pts && item.pts.length>=3){
+    const pts = item.pts;
+    return flip ? pts.map(p=>({ u:item.L-p.u, v:item.W-p.v })) : pts.slice();   // flip = 180° in place
+  }
+  return [{u:0,v:0},{u:item.L,v:0},{u:item.L,v:item.W},{u:0,v:item.W}];
+}
+// corners in truck space. A trapezoid's 90° "rotation" is the transpose it has always been
+// (kept so saved packs don't move); a polygon turns a true 90°, since a real piece can't be mirrored.
+function shapeCorners(b){
+  const pts = localCorners(b.item, !!b.flip);
+  if(!b.rot) return pts.map(p=>({ x:b.x+p.u, z:b.z+p.v }));
+  if(b.item.shape==='poly'){ const W = b.item.W; return pts.map(p=>({ x:b.x+(W-p.v), z:b.z+p.u })); }
+  return pts.map(p=>({ x:b.x+p.v, z:b.z+p.u }));
+}
+function polyArea(pts){ let a=0; for(let i=0;i<pts.length;i++){ const p=pts[i], q=pts[(i+1)%pts.length]; a += p.x*q.z - q.x*p.z; } return a/2; }
+function pointInPoly(pt, poly){
+  let inside = false;
+  for(let i=0, j=poly.length-1; i<poly.length; j=i++){
+    const a = poly[i], b = poly[j];
+    if((a.z > pt.z) !== (b.z > pt.z) && pt.x < (b.x-a.x)*(pt.z-a.z)/(b.z-a.z) + a.x) inside = !inside;
+  }
+  return inside;
+}
+function distToSeg(p, a, b){
+  const dx=b.x-a.x, dz=b.z-a.z; const l2 = dx*dx+dz*dz; if(l2<1e-9) return Math.hypot(p.x-a.x,p.z-a.z);
+  const t = Math.max(0, Math.min(1, ((p.x-a.x)*dx+(p.z-a.z)*dz)/l2));
+  return Math.hypot(p.x-(a.x+t*dx), p.z-(a.z+t*dz));
+}
+function distToPoly(p, poly){ let d=Infinity; for(let i=0;i<poly.length;i++){ d = Math.min(d, distToSeg(p, poly[i], poly[(i+1)%poly.length])); } return d; }
+function strictlyInside(p, poly, tol){ return pointInPoly(p, poly) && distToPoly(p, poly) > tol; }
+function segmentsCross(a,b,c,d){ // proper crossing only — touching or collinear doesn't count
+  const o = (p,q,r)=>(q.x-p.x)*(r.z-p.z)-(q.z-p.z)*(r.x-p.x);
+  const o1=o(a,b,c), o2=o(a,b,d), o3=o(c,d,a), o4=o(c,d,b);
+  const t = 1e-6;
+  return ((o1>t && o2<-t)||(o1<-t && o2>t)) && ((o3>t && o4<-t)||(o3<-t && o4>t));
+}
+// true if two simple polygons (convex or not) share real area — edges that merely touch, and
+// shapes that nest flush, don't count. Works for L-shapes, arcs and rings, not just convex ones.
+function polygonsOverlap(A, B){
+  const tol = 0.3;   // cm — anything closer than this is "touching"
+  for(let i=0;i<A.length;i++) for(let j=0;j<B.length;j++) if(segmentsCross(A[i],A[(i+1)%A.length],B[j],B[(j+1)%B.length])) return true;
+  const probe = (P, Q)=>{
+    const sgn = polyArea(P) > 0 ? 1 : -1;
+    for(let i=0;i<P.length;i++){
+      const a = P[i], b = P[(i+1)%P.length];
+      if(strictlyInside(a, Q, tol)) return true;
+      const mx=(a.x+b.x)/2, mz=(a.z+b.z)/2, ex=b.x-a.x, ez=b.z-a.z, len=Math.hypot(ex,ez)||1;
+      // a point a hair inside P, off the middle of this edge
+      const nx = sgn*ez/len*tol*2, nz = -sgn*ex/len*tol*2;
+      if(strictlyInside({x:mx+nx, z:mz+nz}, Q, tol)) return true;
+    }
+    return false;
+  };
+  return probe(A,B) || probe(B,A);
+}
+// the biggest axis-aligned rectangle that fits inside a polygon (local frame) — where its label goes
+const inscribedCache = new Map();
+function inscribedRectLocal(item, flip){
+  const key = (item.id||'')+'|'+(flip?1:0)+'|'+(item.pts||[]).map(p=>Math.round(p.u)+','+Math.round(p.v)).join(';');
+  if(inscribedCache.has(key)) return inscribedCache.get(key);
+  const poly = localCorners(item, flip).map(p=>({x:p.u, z:p.v}));
+  const N = 14; const L = item.L, W = item.W;
+  const xs = Array.from({length:N+1}, (_,i)=>L*i/N), zs = Array.from({length:N+1}, (_,i)=>W*i/N);
+  let best = null;
+  const rectOk = (x0,z0,x1,z1)=>{
+    const c = [{x:x0,z:z0},{x:x1,z:z0},{x:x1,z:z1},{x:x0,z:z1}];
+    for(const pt of c) if(!pointInPoly(pt, poly) || distToPoly(pt, poly) < -0.1) return false;
+    // no polygon edge may cut through the rectangle
+    for(let i=0;i<poly.length;i++){ const a=poly[i], b=poly[(i+1)%poly.length]; for(let k=0;k<4;k++){ if(segmentsCross(a,b,c[k],c[(k+1)%4])) return false; } }
+    // and no polygon vertex may sit inside it (a notch poking in)
+    for(const v of poly) if(v.x>x0+0.5 && v.x<x1-0.5 && v.z>z0+0.5 && v.z<z1-0.5) return false;
+    return true;
+  };
+  for(let i=0;i<N;i++) for(let j=i+1;j<=N;j++) for(let k=0;k<N;k++) for(let m=k+1;m<=N;m++){
+    const area = (xs[j]-xs[i])*(zs[m]-zs[k]);
+    if(best && area <= best.area) continue;
+    if(rectOk(xs[i]+0.01, zs[k]+0.01, xs[j]-0.01, zs[m]-0.01)) best = { u0:xs[i], v0:zs[k], ul:xs[j]-xs[i], vl:zs[m]-zs[k], area };
+  }
+  if(!best) best = { u0:L*0.3, v0:W*0.3, ul:L*0.4, vl:W*0.4, area:0 };
+  inscribedCache.set(key, best);
+  return best;
 }
 // separating-axis test for two convex polygons (both are simple 4-point shapes here) —
 // true if they genuinely overlap in area, not just in their bounding boxes
@@ -1868,8 +1962,8 @@ function footprintOverlap(a,b){
   // two trapezoids' bounding boxes overlap by design when they nest (one flipped) — that's
   // not a real collision, so fall back to their true outlines before calling it "overlap"
   // for stacking/support purposes too, not just placement validity
-  if(a.item && a.item.shape==='trapezoid' && b.item && b.item.shape==='trapezoid' && Math.abs((a.y||0)-(b.y||0))<EPS){
-    return polygonsOverlap(trapezoidCorners(a), trapezoidCorners(b)) ? ox*oz : 0;
+  if((hasOutline(a.item) || hasOutline(b.item)) && a.item && b.item && Math.abs((a.y||0)-(b.y||0))<EPS){
+    return polygonsOverlap(shapeCorners(a), shapeCorners(b)) ? ox*oz : 0;
   }
   return ox*oz;
 }
@@ -2203,7 +2297,8 @@ function renderGearRow(list, g, units){
     const c = catById(catOf(g)); const catShort = (c.short||'').toUpperCase();
     const hasRealName = c.id==='other' || (g.name && g.name!==catShort);
     // a generic item (name is just its category) is told apart by its size, so lead with that
-    const primary = hasRealName ? `${esc(g.name)} <span class="stock-tag">${esc(c.short||c.label)}</span>` : `<span class="gear-size-lead">${dimsSorted(g, units)}</span> <span class="gear-short">${lenUnitLabel(units)}</span>`;
+    const shapeTag = shapeKindLabel(g) ? ` <span class="stock-tag" title="${esc(shapeKindLabel(g))} — size shown is the bounding box">${esc(shapeKindLabel(g))}</span>` : '';
+    const primary = (hasRealName ? `${esc(g.name)} <span class="stock-tag">${esc(c.short||c.label)}</span>` : `<span class="gear-size-lead">${dimsSorted(g, units)}</span> <span class="gear-short">${lenUnitLabel(units)}</span>`) + shapeTag;
     const inPlan = gearUseCounts[g.id]||0;
     const secondary = (hasRealName ? `${dimsSorted(g, units)} ${lenUnitLabel(units)} · ${fmt(kgToDisplay(g.weight,units),0)} ${wtUnitLabel(units)}` : `${esc(c.short||g.name)} · ${fmt(kgToDisplay(g.weight,units),0)} ${wtUnitLabel(units)}`) + (inPlan ? ` · <span class="gear-inplan" title="Cases of this size on this leg — editing the size changes all of them">${inPlan} in plan</span>` : '');
     row.innerHTML = `
@@ -2499,7 +2594,7 @@ function renderInspector(){
     ${boxes.length ? `<div class="insp-f"><label>Placement</label><div class="insp-row insp-toggles"><label title="Pinned cases stay put; the auto-packer builds walls around them"><input type="checkbox" id="insp_pin" ${allManual?'checked':''}> Pinned${boxes.length>1&&anyManual&&!allManual?` <small style="grid-column:auto">(${boxes.filter(b=>b.manual).length} of ${boxes.length})</small>`:''}</label><label title="Turned 90° on the floor (R)"><input type="checkbox" id="insp_rot" ${allRot?'checked':''}> Rotated 90°</label></div>${posTxt?`<small class="insp-dim">${posTxt}</small>`:''}</div>` : ''}
     <div class="insp-acts">
       ${boxes.length ? `<button class="btn-ghost" id="insp_rotate" title="Turn 90° (R)">Rotate${boxes.length>1?' all':''}</button>` : ''}
-      ${boxes.some(b=>b.item.shape==='trapezoid') ? '<button class="btn-ghost" id="insp_flip" title="Turn end-for-end, 180° (F)">Flip 180°</button>' : ''}
+      ${boxes.some(b=>hasOutline(b.item)) ? '<button class="btn-ghost" id="insp_flip" title="Turn end-for-end, 180° (F)">Flip 180°</button>' : ''}
       ${b1 && b1.y>EPS ? '<button class="btn-ghost" id="insp_unstack" title="Move it down onto the floor (U)">Unstack</button>' : ''}
       ${oneStack ? '<button class="btn-ghost" id="insp_unstacktop" title="Move the top case down onto the floor (U)">Unstack top</button><button class="btn-ghost" id="insp_picktop" title="Select just the top case">Pick top</button>' : ''}
       <button class="btn-ghost" id="insp_dup" title="Add another just like it (Ctrl/Cmd+D)">Duplicate</button>
@@ -2627,7 +2722,7 @@ function drawBox(b, cx, cz, scale, originX, originY, color){
   const cosR = Math.cos(state.rotation), sinR = Math.sin(state.rotation);
   const visible = (nx,nz)=>{ const rx = nx*cosR - nz*sinR, rz = nx*sinR + nz*cosR; return rx+rz > 0; };
   let top, faces;
-  if(b.item && b.item.shape==='trapezoid'){
+  if(hasOutline(b.item)){
     // a frame is a trapezoidal prism: its real floor outline extruded up, one wall per edge, drawn
     // when that wall's outward normal faces the viewer — same rule as the four walls of a box
     const fp = trapezoidCorners(b).map(c=>({ dx:c.x - b.x + inset, dz:c.z - b.z + inset }));
@@ -2654,7 +2749,7 @@ function drawBox(b, cx, cz, scale, originX, originY, color){
   }
   // keep the lighter shade on whichever visible side is more "front-on" so the box reads the same at any angle
   faces.sort((a,b)=>{ const s = f=>{ const rx=f.n[0]*cosR-f.n[1]*sinR, rz=f.n[0]*sinR+f.n[1]*cosR; return rz-rx; }; return s(b)-s(a); });
-  if(faces.length===2 && !(b.item && b.item.shape==='trapezoid')){ faces[0].shade=0.85; faces[1].shade=0.65; }
+  if(faces.length===2 && !hasOutline(b.item)){ faces[0].shade=0.85; faces[1].shade=0.65; }
   function poly(pts, fill){
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y);
@@ -3266,7 +3361,7 @@ function drawFloorBox(b, alpha, lvl, validOverride, pass){
   fctx.globalAlpha = alpha;
   const color = colorOf(b);
   fctx.fillStyle = shade(color, 1 + Math.min(0.5,(b.y/ (packResult.container.H||1))*0.6));
-  const isTrap = b.item.shape==='trapezoid';
+  const isTrap = hasOutline(b.item);
   if(doShape){
   if(isTrap){
     const pts = trapezoidCorners(b).map(pt=>toPx(pt.x,pt.z));
@@ -4144,7 +4239,7 @@ function rotateSelected(){
   const tooBig = ok.filter(b=>(b.item.noRotate?false:(b.rot?b.item.W:b.item.L) > c.W+EPS || (b.rot?b.item.L:b.item.W) > c.L+EPS));
   ok = ok.filter(b=>!tooBig.includes(b));
   if(!ok.length){
-    const traps = tooBig.filter(b=>b.item.shape==='trapezoid');
+    const traps = tooBig.filter(b=>hasOutline(b.item));
     if(traps.length){ flipSelected(); showToast(traps.length>1 ? `Turned ${traps.length} frames end-for-end — 90° wouldn't fit the width` : 'Turned end-for-end — 90° wouldn\'t fit the width'); return; }
     if(fixed.length) showToast('Fixed orientation');
     else if(tooBig.length) showToast(tooBig.length>1 ? `${tooBig.length} cases won't fit rotated — truck isn't wide enough` : `Won't fit rotated — truck isn't wide enough`);
@@ -4165,13 +4260,13 @@ function flipSelected(){
   // nested point-to-point are one unit on the floor: turning only one of them would lay it straight
   // across its partner, so the partner turns with it (that is what "turn the frames round" means in
   // the truck). If the result would still land on something, nothing moves and the reason is shown.
-  let boxes = selectedBoxes().filter(b=>!b.isBar && b.item.shape==='trapezoid'); if(!boxes.length) return;
+  let boxes = selectedBoxes().filter(b=>!b.isBar && hasOutline(b.item)); if(!boxes.length) return;
   const all = packResult.placed.filter(b=>!b.isBar);
   const bboxOverlap = (a,b)=> !(a.x+a.l <= b.x+EPS || b.x+b.l <= a.x+EPS || a.z+a.w <= b.z+EPS || b.z+b.w <= a.z+EPS) && Math.abs(a.y-b.y)<EPS;
   // the nest: trapezoids whose bounding boxes share floor with a selected one but whose outlines don't collide
   const set = new Set(boxes.map(b=>b.key));
   let grew = true;
-  while(grew){ grew = false; all.forEach(o=>{ if(set.has(o.key) || o.item.shape!=='trapezoid') return; if(boxes.some(b=>bboxOverlap(b,o) && !overlaps(b,o))){ set.add(o.key); boxes.push(o); grew = true; } }); }
+  while(grew){ grew = false; all.forEach(o=>{ if(set.has(o.key) || !hasOutline(o.item)) return; if(boxes.some(b=>bboxOverlap(b,o) && !overlaps(b,o))){ set.add(o.key); boxes.push(o); grew = true; } }); }
   // turning a nest 180° means each piece flips AND the pieces swap sides: mirror every box's
   // across-truck position about the nest's own centre line (a lone frame stays where it is)
   const zMin = Math.min(...boxes.map(b=>b.z)), zMax = Math.max(...boxes.map(b=>b.z+b.w));
@@ -4385,7 +4480,7 @@ function renderSelBar(){
       <span class="sel-pos">${fmt(kgToDisplay(wt,u),0)} ${wtUnitLabel(u)} · ${cases.filter(x=>x.manual).length} pinned${elsewhere>0?` · +${elsewhere} not on this truck`:''}</span>
       <span class="spacer"></span>
       ${oneStack ? `<button class="btn-ghost" id="unstackTop" title="Move the top case down onto the floor at the nearest open spot (U)">Unstack top</button><button class="btn-ghost" id="pickTop" title="Select just the top case so you can rotate, label or move it on its own (or Alt+click it)">Pick top case</button>` : ''}
-      ${cases.length?'<button class="btn-ghost" id="rotSel" title="R">Rotate all</button>'+(cases.some(x=>x.item.shape==='trapezoid')?'<button class="btn-ghost" id="flipSel" title="Turn the frames end-for-end (180°) in place (F)">Flip 180°</button>':'')+'<button class="btn-ghost" id="dupSel" title="Ctrl/Cmd+D">Duplicate</button>':''}
+      ${cases.length?'<button class="btn-ghost" id="rotSel" title="R">Rotate all</button>'+(cases.some(x=>hasOutline(x.item))?'<button class="btn-ghost" id="flipSel" title="Turn the frames end-for-end (180°) in place (F)">Flip 180°</button>':'')+'<button class="btn-ghost" id="dupSel" title="Ctrl/Cmd+D">Duplicate</button>':''}
       ${cases.some(x=>x.manual)?'<button class="btn-ghost" id="relSel">Auto-place</button>':''}
       <button class="btn-ghost" id="rmSelCase" title="Take these out of the truck — they stay on the leg, unassigned (Delete)">Out of truck</button>
       <button class="btn-ghost" id="clrSel">Clear selection</button>`;
@@ -4418,7 +4513,7 @@ function renderSelBar(){
     ${elsewhere>0 ? `<span class="hint">+${elsewhere} selected elsewhere</span>` : ''}
     <span class="spacer"></span>
     <button class="btn-ghost" id="rotSel" title="R">Rotate 90°</button>
-    ${b.item.shape==='trapezoid' ? '<button class="btn-ghost" id="flipSel" title="Turn it end-for-end (180°) in place — the angled edge switches ends (F)">Flip 180°</button>' : ''}
+    ${hasOutline(b.item) ? '<button class="btn-ghost" id="flipSel" title="Turn it end-for-end (180°) in place — the angled edge switches ends (F)">Flip 180°</button>' : ''}
     ${b.y>EPS ? '<button class="btn-ghost" id="unstackSel" title="Move this case down onto the floor, off whatever it\'s sitting on (U)">Unstack</button>' : ''}
     <button class="btn-ghost" id="dupSel" title="Add another one just like it (Ctrl/Cmd+D)">Duplicate</button>
     ${b.manual ? '<button class="btn-ghost" id="relSel">Auto-place</button>' : ''}
@@ -4452,7 +4547,7 @@ document.addEventListener('keydown', e=>{
   const step = (state.units==='imperial' ? CM_PER_IN : 1) * (e.shiftKey?10:1);
   if(e.key==='r' || e.key==='R'){ e.preventDefault(); rotateSelected(); }
   else if(e.key==='u' || e.key==='U'){ e.preventDefault(); unstackFromKeyboard(); }
-  else if(e.key==='f' || e.key==='F'){ e.preventDefault(); if(selectedBoxes().some(b=>b.item.shape==='trapezoid')) flipSelected(); else showToast('Flip is for trapezoid frames — R rotates everything else'); }
+  else if(e.key==='f' || e.key==='F'){ e.preventDefault(); if(selectedBoxes().some(b=>hasOutline(b.item))) flipSelected(); else showToast('Flip is for shaped pieces — R rotates everything else'); }
   else if(e.key==='ArrowLeft'){ e.preventDefault(); nudgeSelected(-step,0); }
   else if(e.key==='ArrowRight'){ e.preventDefault(); nudgeSelected(step,0); }
   else if(e.key==='ArrowUp'){ e.preventDefault(); nudgeSelected(0,-step); }
@@ -4637,7 +4732,7 @@ function handleFloorContextMenu(e){
       const items = [
         { label: one ? 'Rotate 90°' : 'Rotate all', key:'R', onClick: rotateSelected },
       ];
-      if(boxes.some(x=>x.item.shape==='trapezoid')) items.push({ label:'Flip 180°', key:'F', onClick: flipSelected });
+      if(boxes.some(x=>hasOutline(x.item))) items.push({ label:'Flip 180°', key:'F', onClick: flipSelected });
       if(one && b.y>EPS) items.push({ label:'Unstack', key:'U', onClick: ()=>unstackSelected(b.key) });
       if(oneStack){ const top = stackMembers(boxes[0])[boxes.length-1]; items.push({ label:'Unstack top', key:'U', onClick: ()=>unstackSelected(top.key) }); items.push({ label:'Pick top case', onClick: ()=>{ setSelection([top.key], top.key); afterSelectionChange(); } }); }
       items.push({ label:'Rename…', key:'Enter', onClick: ()=>{ const nm = $('#insp_name'); if(nm){ nm.focus(); nm.select(); } } });
@@ -5251,7 +5346,7 @@ function openShortcutsModal(){
       ['Drag a truck\'s name', 'Move the truck around the workspace'],
       ['Arrow keys', 'Nudge by 1 — hold Shift for 10'],
       ['R', 'Rotate 90° (a frame that can\'t turn 90° turns end-for-end instead)'],
-      ['F', 'Flip a trapezoid frame end-for-end (180°)'],
+      ['F', 'Turn a shaped piece (frame, L, wedge…) end-for-end (180°)'],
       ['U', 'Unstack — drop the top case to the nearest open floor spot'],
       [mod+' + D', 'Duplicate'],
       [mod+' + C / '+mod+' + V', 'Copy and paste cases'],
@@ -5573,8 +5668,8 @@ function truckSVG(pr, layerBoxes){
     const onOther = g.minY > EPS;
     const shrink = onOther ? 3 : 0;
     const x = ox + g.x + inset + shrink, z = oz + g.z + inset + shrink, l = g.l - 2*inset - 2*shrink, w = g.w - 2*inset - 2*shrink;
-    if(g.item.shape==='trapezoid'){
-      const pts = trapezoidCorners({x:g.x,z:g.z,item:g.item,rot:g.rot,flip:g.flip}).map(p=>({x:ox+p.x,z:oz+p.z}));
+    if(hasOutline(g.item)){
+      const pts = shapeCorners({x:g.x,z:g.z,item:g.item,rot:g.rot,flip:g.flip}).map(p=>({x:ox+p.x,z:oz+p.z}));
       const path = pts.map((p,i)=>`${i===0?'M':'L'}${p.x},${p.z}`).join(' ')+' Z';
       shapes += `<path d="${path}" fill="#fff" stroke="#000" stroke-width="${onOther?0.5:0.8}"/>`;
     } else {
@@ -5588,8 +5683,8 @@ function truckSVG(pr, layerBoxes){
     const innerL = ll - 6, innerW = lw - 5;
     const { fontSize:nameFs, lines, showDims, smallFs, blockH } = fitLabelLayout(label, dims, innerL, innerW);
     const clipId = 'c'+(clipN++);
-    s += g.item.shape==='trapezoid'
-      ? `<clipPath id="${clipId}"><path d="${trapezoidCorners({x:g.x,z:g.z,item:g.item,rot:g.rot,flip:g.flip}).map((p,i)=>`${i===0?'M':'L'}${ox+p.x},${oz+p.z}`).join(' ')} Z"/></clipPath>`
+    s += hasOutline(g.item)
+      ? `<clipPath id="${clipId}"><path d="${shapeCorners({x:g.x,z:g.z,item:g.item,rot:g.rot,flip:g.flip}).map((p,i)=>`${i===0?'M':'L'}${ox+p.x},${oz+p.z}`).join(' ')} Z"/></clipPath>`
       : `<clipPath id="${clipId}"><rect x="${x}" y="${z}" width="${l}" height="${w}"/></clipPath>`;
     s += `<g clip-path="url(#${clipId})">`;
     let ty = lz + lw/2 - blockH/2 + nameFs;
@@ -6157,7 +6252,7 @@ async function splitPdfToPages(file, pageIndices){
 function findLibBySize(Lcm, Wcm, Hcm, name, category){
   const tol = 2.6;
   const same = (a,b)=>Math.abs(a-b)<=tol;
-  const dimsMatch = g => g.shape!=='trapezoid' && same(g.H,Hcm) && ((same(g.L,Lcm)&&same(g.W,Wcm))||(same(g.L,Wcm)&&same(g.W,Lcm)));
+  const dimsMatch = g => !hasOutline(g) && same(g.H,Hcm) && ((same(g.L,Lcm)&&same(g.W,Wcm))||(same(g.L,Wcm)&&same(g.W,Lcm)));
   const byName = name ? state.gearLibrary.find(g=> g.name.toUpperCase()===name.toUpperCase() && dimsMatch(g)) : null;
   if(byName) return byName;
   // same category and size, whatever it's called — one entry per size per category, never a twin
@@ -6170,7 +6265,7 @@ function catalogDuplicateGroups(){
   const groups = []; const seen = new Set();
   state.gearLibrary.forEach(g=>{
     if(seen.has(g.id)) return;
-    const twins = state.gearLibrary.filter(o=> o!==g && !seen.has(o.id) && catOf(o)===catOf(g) && (o.shape||'')===(g.shape||'') && same(o.L,g.L) && same(o.W,g.W) && same(o.H,g.H) && (g.shape!=='trapezoid' || (same(o.depthA||0,g.depthA||0) && same(o.depthB||0,g.depthB||0))));
+    const twins = state.gearLibrary.filter(o=> o!==g && !seen.has(o.id) && catOf(o)===catOf(g) && (o.shape||'')===(g.shape||'') && JSON.stringify(o.pts||null)===JSON.stringify(g.pts||null) && same(o.L,g.L) && same(o.W,g.W) && same(o.H,g.H) && (g.shape!=='trapezoid' || (same(o.depthA||0,g.depthA||0) && same(o.depthB||0,g.depthB||0))));
     if(!twins.length) return;
     const all = [g].concat(twins);
     // keep the stock entry if there is one, else the one with the most cases, else the oldest
@@ -6584,6 +6679,68 @@ function openCategoriesModal(){
 }
 // a stored metric value converted to inches/lb often lands at 75.98 or 507.06 — show the number
 // the person actually typed: snap anything within 0.1 of a whole to the whole, else one decimal
+/* ---- shape presets: each returns corner points in cm, origin at the top-left of the bounding box ---- */
+const SHAPE_KINDS = {
+  rect:      { label:'Rectangle' },
+  trapezoid: { label:'Right trapezoid — one straight side, one angled' },
+  lshape:    { label:'L-shape — a rectangle with one corner notched out' },
+  wedge:     { label:'Wedge — right triangle (ramps, raked deck)' },
+  cut:       { label:'Cut corners — rectangle with all four corners chamfered' },
+  round:     { label:'Round — drum, reel, circular platform' },
+  arc:       { label:'Arc segment — curved truss, ring section' },
+  custom:    { label:'Custom — draw the outline' },
+};
+function normalizePts(pts){
+  const mu = Math.min(...pts.map(p=>p.u)), mv = Math.min(...pts.map(p=>p.v));
+  const out = pts.map(p=>({ u: Math.round((p.u-mu)*10)/10, v: Math.round((p.v-mv)*10)/10 }));
+  return { pts: out, L: Math.max(...out.map(p=>p.u)), W: Math.max(...out.map(p=>p.v)) };
+}
+function presetPoints(kind, q){
+  const L = q.L||0, W = q.W||0;
+  switch(kind){
+    case 'lshape': {
+      const nL = Math.min(q.nL||0, L-1), nW = Math.min(q.nW||0, W-1); const c = q.corner||'TR';
+      // full rectangle minus a notch at one corner
+      if(c==='TR') return [{u:0,v:0},{u:L-nL,v:0},{u:L-nL,v:nW},{u:L,v:nW},{u:L,v:W},{u:0,v:W}];
+      if(c==='TL') return [{u:nL,v:0},{u:L,v:0},{u:L,v:W},{u:0,v:W},{u:0,v:nW},{u:nL,v:nW}];
+      if(c==='BR') return [{u:0,v:0},{u:L,v:0},{u:L,v:W-nW},{u:L-nL,v:W-nW},{u:L-nL,v:W},{u:0,v:W}];
+      return [{u:0,v:0},{u:L,v:0},{u:L,v:W},{u:nL,v:W},{u:nL,v:W-nW},{u:0,v:W-nW}];
+    }
+    case 'wedge': {
+      const c = q.corner||'BL';   // which corner holds the right angle
+      if(c==='BL') return [{u:0,v:0},{u:L,v:W},{u:0,v:W}];
+      if(c==='BR') return [{u:L,v:0},{u:L,v:W},{u:0,v:W}];
+      if(c==='TL') return [{u:0,v:0},{u:L,v:0},{u:0,v:W}];
+      return [{u:0,v:0},{u:L,v:0},{u:L,v:W}];
+    }
+    case 'cut': {
+      const c = Math.max(0, Math.min(q.c||0, L/2-0.5, W/2-0.5));
+      return [{u:c,v:0},{u:L-c,v:0},{u:L,v:c},{u:L,v:W-c},{u:L-c,v:W},{u:c,v:W},{u:0,v:W-c},{u:0,v:c}];
+    }
+    case 'round': {
+      const r = (q.D||0)/2, n = 24; const pts = [];
+      for(let i=0;i<n;i++){ const a = i/n*Math.PI*2; pts.push({ u: r + r*Math.cos(a), v: r + r*Math.sin(a) }); }
+      return pts;
+    }
+    case 'arc': {
+      const R = q.R||0, r = Math.max(0, Math.min(q.r||0, R-1)), deg = Math.max(5, Math.min(360, q.deg||90));
+      const n = Math.max(4, Math.round(deg/7.5)); const a0 = -deg/2*Math.PI/180, a1 = deg/2*Math.PI/180;
+      const outer = [], inner = [];
+      // chord runs along the length, the curve bulges across the width
+      for(let i=0;i<=n;i++){ const a = a0 + (a1-a0)*i/n; outer.push({ u: R*Math.sin(a), v: -R*Math.cos(a) }); if(r>0) inner.push({ u: r*Math.sin(a), v: -r*Math.cos(a) }); }
+      const pts = r>0 ? outer.concat(inner.reverse()) : outer.concat([{u:0,v:0}]);
+      return pts;
+    }
+    default: return [{u:0,v:0},{u:L,v:0},{u:L,v:W},{u:0,v:W}];
+  }
+}
+function shapeKindLabel(g){ if(!g || !g.shape || g.shape==='rect') return ''; if(g.shape==='trapezoid') return 'trapezoid'; const k = g.shapeKind||'custom'; return ({lshape:'L-shape', wedge:'wedge', cut:'cut corners', round:'round', arc:'arc', custom:'custom shape'})[k] || 'shape'; }
+// small SVG of an outline, for the catalog row and the editor preview
+function shapePreviewSVG(pts, L, W, px){
+  px = px||120; const sc = Math.min(px/Math.max(1,L), (px*0.6)/Math.max(1,W));
+  const w = Math.max(20, L*sc+8), h = Math.max(14, W*sc+8);
+  return `<svg width="${w.toFixed(0)}" height="${h.toFixed(0)}" viewBox="0 0 ${w.toFixed(1)} ${h.toFixed(1)}"><path d="${pts.map((p,i)=>`${i?'L':'M'}${(4+p.u*sc).toFixed(1)},${(4+p.v*sc).toFixed(1)}`).join(' ')} Z" fill="#E8D9B5" stroke="#1B1F23" stroke-width="1.2"/></svg>`;
+}
 function tidyNum(v){
   if(!isFinite(v)) return '';
   const r = Math.round(v);
@@ -6601,12 +6758,13 @@ function openGearFormModal(editId){
       <div class="full"><label style="display:flex;justify-content:space-between;">Category <a href="#" id="manageCatsLink" style="text-transform:none;letter-spacing:0;color:var(--steel);font-size:11px;">edit categories…</a></label><select id="f_cat" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;background:#fff;"></select></div>
       <div class="full" id="f_nameWrap" style="display:${(g&&(catOf(g)==='other'||catOf(g)==='lift')) ? 'block':'none'};"><label>${g&&catOf(g)==='lift'?'Name (optional)':'Name (this category has no generic label of its own)'}</label><input type="text" id="f_name" placeholder="${g&&catOf(g)==='lift'?'e.g. Genie boom lift':'e.g. Substructure Cart'}" value="${g && hasName ? esc(g.name) : ''}"></div>
       <div class="full"><label>Shape</label><select id="f_shape" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;background:#fff;">
-        <option value="rect" ${!g||g.shape!=='trapezoid'?'selected':''}>Rectangle</option>
-        <option value="trapezoid" ${g&&g.shape==='trapezoid'?'selected':''}>Right trapezoid — one straight side, one angled</option>
+        ${Object.keys(SHAPE_KINDS).map(k=>`<option value="${k}" ${(g ? (g.shape==='trapezoid' ? 'trapezoid' : g.shape==='poly' ? (g.shapeKind||'custom') : 'rect') : 'rect')===k?'selected':''}>${SHAPE_KINDS[k].label}</option>`).join('')}
       </select></div>
       <div id="f_lLabel"><label>Length (longest)</label><input type="number" id="f_l" min="0" step="0.1" value="${g?tidyNum(cmToDisplay(g.L,u)):''}"></div>
       <div id="f_wLabel"><label>Width</label><input type="number" id="f_w" min="0" step="0.1" value="${g?tidyNum(cmToDisplay(g.shape==='trapezoid'?g.depthA:g.W,u)):''}"></div>
       <div class="full" id="f_depthBWrap" style="display:${g&&g.shape==='trapezoid'?'block':'none'};"><label>Depth at angled end</label><input type="number" id="f_depthB" min="0" step="0.1" value="${g&&g.shape==='trapezoid'?tidyNum(cmToDisplay(g.depthB,u)):''}"></div>
+      <div class="full" id="f_shapeParams" style="display:none;"></div>
+      <div class="full" id="f_shapePreview" style="display:none;align-items:center;gap:12px;"></div>
       <div><label>Height</label><input type="number" id="f_h" min="0" step="0.1" value="${g?tidyNum(cmToDisplay(g.H,u)):''}"></div>
       <div><label>Weight</label><input type="number" id="f_wt" min="0" step="0.1" value="${g?tidyNum(kgToDisplay(g.weight,u)):''}"></div>
       <div class="flags">
@@ -6634,14 +6792,92 @@ function openGearFormModal(editId){
   };
   updateNameField();
   back.querySelector('#f_cat').onchange = updateNameField;
-  const updateShapeFields = ()=>{
-    const isTrap = back.querySelector('#f_shape').value==='trapezoid';
+  // shaped pieces: parameter fields per kind (in the person's units), a live preview, and for
+  // "custom" a little grid to draw the outline on. Everything ends up as corner points in cm.
+  const shapeState = { kind: g && g.shape==='poly' ? (g.shapeKind||'custom') : (g && g.shape==='trapezoid' ? 'trapezoid' : 'rect'), params: Object.assign({}, (g && g.shapeParams) || {}), pts: (g && g.shape==='poly' && g.pts) ? g.pts.map(p=>({u:p.u,v:p.v})) : [] };
+  const toD = cm => tidyNum(cmToDisplay(cm, u)), toC = d => displayToCm(parseFloat(d)||0, u);
+  const PARAM_DEFS = {
+    lshape: [['L','Overall length'],['W','Overall width'],['nL','Notch length (along the length)'],['nW','Notch depth (across the width)'],['corner','Notched corner',['TR','Top right'],['TL','Top left'],['BR','Bottom right'],['BL','Bottom left']]],
+    wedge:  [['L','Length'],['W','Width'],['corner','Square corner',['BL','Bottom left'],['BR','Bottom right'],['TL','Top left'],['TR','Top right']]],
+    cut:    [['L','Length'],['W','Width'],['c','Corner cut']],
+    round:  [['D','Diameter']],
+    arc:    [['R','Outer radius'],['r','Inner radius (0 = pie slice)'],['deg','Sweep angle (°)','deg']],
+    custom: [],
+  };
+  const currentPts = ()=>{
+    if(shapeState.kind==='custom') return shapeState.pts;
+    const q = {}; (PARAM_DEFS[shapeState.kind]||[]).forEach(d=>{ const k=d[0]; const v = shapeState.params[k]; q[k] = (k==='corner') ? (v||d[2][0]) : (k==='deg' ? (parseFloat(v)||90) : (parseFloat(v)||0)); });
+    return presetPoints(shapeState.kind, q);
+  };
+  const renderShapeParams = ()=>{
+    const kind = shapeState.kind; const isPoly = PARAM_DEFS[kind]!==undefined;
+    const isTrap = kind==='trapezoid';
+    back.querySelector('#f_lLabel').style.display = isPoly ? 'none' : '';
+    back.querySelector('#f_wLabel').style.display = isPoly ? 'none' : '';
     back.querySelector('#f_lLabel label').textContent = isTrap ? 'Long side' : 'Length (longest)';
     back.querySelector('#f_wLabel label').textContent = isTrap ? 'Depth at square end' : 'Width';
     back.querySelector('#f_depthBWrap').style.display = isTrap ? 'block' : 'none';
+    const wrap = back.querySelector('#f_shapeParams'), prev = back.querySelector('#f_shapePreview');
+    wrap.style.display = isPoly ? 'block' : 'none'; prev.style.display = isPoly ? 'flex' : 'none';
+    if(!isPoly) return;
+    const defs = PARAM_DEFS[kind];
+    wrap.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;">${defs.map(d=>{
+      const k=d[0], lbl=d[1];
+      if(k==='corner') return `<div><label>${lbl}</label><select data-sp="corner" style="width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:var(--radius);font-size:13px;background:#fff;">${d.slice(2).map(o=>`<option value="${o[0]}" ${(shapeState.params.corner||d[2][0])===o[0]?'selected':''}>${o[1]}</option>`).join('')}</select></div>`;
+      const unit = d[2]==='deg' ? '°' : lenUnitLabel(u);
+      const val = shapeState.params[k]!==undefined ? (d[2]==='deg' ? shapeState.params[k] : toD(shapeState.params[k])) : '';
+      return `<div><label>${lbl} (${unit})</label><input type="number" data-sp="${k}" min="0" step="0.1" value="${val}"></div>`;
+    }).join('')}</div>` + (kind==='custom' ? `
+      <div style="font-size:11px;color:var(--ink-soft);margin:8px 0 4px;">Click to add corners in order around the outline (snaps to ${u==='imperial'?'1 in':'1 cm'}). Drag a corner to move it, double-click one to remove it.</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:4px;"><label style="font-size:11px;">Grid size (${lenUnitLabel(u)}) <input type="number" id="f_gridSize" value="${shapeState.gridL||(u==='imperial'?'120':'300')}" style="width:70px;"></label><button type="button" class="btn-ghost" id="f_clearPts" style="padding:2px 8px;">Clear</button><span id="f_ptsInfo" style="font-size:11px;color:var(--ink-soft);"></span></div>
+      <svg id="f_shapeEditor" width="100%" height="260" style="background:#fff;border:1px solid var(--line);border-radius:var(--radius);touch-action:none;cursor:crosshair;"></svg>` : '');
+    wrap.querySelectorAll('[data-sp]').forEach(inp=>{ inp.oninput = ()=>{ const k = inp.getAttribute('data-sp'); shapeState.params[k] = k==='corner' ? inp.value : (k==='deg' ? parseFloat(inp.value)||0 : toC(inp.value)); renderPreview(); }; inp.onkeydown = e=>e.stopPropagation(); });
+    if(kind==='custom') wireEditor();
+    renderPreview();
   };
-  updateShapeFields();
-  back.querySelector('#f_shape').onchange = updateShapeFields;
+  const renderPreview = ()=>{
+    const prev = back.querySelector('#f_shapePreview'); if(prev.style.display==='none') return;
+    const pts = currentPts();
+    if(pts.length<3){ prev.innerHTML = `<span style="font-size:12px;color:var(--ink-soft)">${shapeState.kind==='custom'?'Add at least three corners.':'Fill in the dimensions to see the shape.'}</span>`; return; }
+    const n = normalizePts(pts);
+    prev.innerHTML = shapePreviewSVG(n.pts, n.L, n.W, 160) + `<span style="font-size:12px;color:var(--ink-soft)">Bounding box <b>${toD(n.L)} × ${toD(n.W)} ${lenUnitLabel(u)}</b> · footprint ${fmt(Math.abs(polyArea(n.pts.map(p=>({x:p.u,z:p.v}))))/(u==='imperial'?CM_PER_IN*CM_PER_IN:10000), u==='imperial'?0:2)} ${u==='imperial'?'sq in':'m²'}</span>`;
+    if(shapeState.kind==='custom') drawEditor();
+  };
+  // ---- the custom outline editor ----
+  let edDrag = null;
+  const edGeom = ()=>{ const svg = back.querySelector('#f_shapeEditor'); if(!svg) return null; const r = svg.getBoundingClientRect(); const gridL = displayToCm(parseFloat(back.querySelector('#f_gridSize').value)||(u==='imperial'?120:300), u); const sc = Math.min((r.width-20)/gridL, (r.height-20)/(gridL*0.6)); return { svg, r, gridL, sc, ox:10, oz:10, step: u==='imperial' ? CM_PER_IN : 1 }; };
+  const drawEditor = ()=>{
+    const G = edGeom(); if(!G) return;
+    const { svg, r, gridL, sc, ox, oz, step } = G;
+    let h = '';
+    const majorEvery = u==='imperial' ? 12 : 10;
+    const nLines = Math.floor(gridL/step);
+    for(let i=0;i<=nLines;i++){ const major = i%majorEvery===0; if(!major && sc*step<5) continue; const x = ox + i*step*sc; const y = oz + i*step*sc; h += `<line x1="${x}" y1="${oz}" x2="${x}" y2="${r.height-10}" stroke="${major?'#C9CCC5':'#EEEFEA'}" stroke-width="${major?1:0.5}"/>`; if(y < r.height-10) h += `<line x1="${ox}" y1="${y}" x2="${r.width-10}" y2="${y}" stroke="${major?'#C9CCC5':'#EEEFEA'}" stroke-width="${major?1:0.5}"/>`; }
+    const P = shapeState.pts.map(p=>({ x: ox + p.u*sc, y: oz + p.v*sc }));
+    if(P.length>=2) h += `<path d="${P.map((p,i)=>`${i?'L':'M'}${p.x},${p.y}`).join(' ')}${P.length>=3?' Z':''}" fill="rgba(232,217,181,0.6)" stroke="#1B1F23" stroke-width="1.5"/>`;
+    P.forEach((p,i)=>{ h += `<circle cx="${p.x}" cy="${p.y}" r="6" fill="${i===0?'#F5B700':'#fff'}" stroke="#1B1F23" stroke-width="1.5" data-pt="${i}" style="cursor:move"/>`; });
+    svg.innerHTML = h;
+    const info = back.querySelector('#f_ptsInfo'); if(info) info.textContent = shapeState.pts.length ? `${shapeState.pts.length} corners` : '';
+  };
+  const wireEditor = ()=>{
+    const G = edGeom(); if(!G) return; const svg = G.svg;
+    const toLocal = e=>{ const G2 = edGeom(); const rect = svg.getBoundingClientRect(); const u0 = (e.clientX-rect.left-G2.ox)/G2.sc, v0 = (e.clientY-rect.top-G2.oz)/G2.sc; const snap = v=>Math.max(0, Math.round(v/G2.step)*G2.step); return { u: snap(u0), v: snap(v0) }; };
+    svg.onpointerdown = e=>{
+      const t = e.target.closest('[data-pt]');
+      if(t){ edDrag = { i: parseInt(t.getAttribute('data-pt')), moved:false }; svg.setPointerCapture(e.pointerId); return; }
+      shapeState.pts.push(toLocal(e)); shapeState.gridL = parseFloat(back.querySelector('#f_gridSize').value); renderPreview();
+    };
+    svg.onpointermove = e=>{ if(!edDrag) return; edDrag.moved = true; shapeState.pts[edDrag.i] = toLocal(e); drawEditor(); };
+    svg.onpointerup = ()=>{ if(edDrag){ edDrag = null; renderPreview(); } };
+    svg.ondblclick = e=>{ const t = e.target.closest('[data-pt]'); if(t){ shapeState.pts.splice(parseInt(t.getAttribute('data-pt')),1); renderPreview(); } };
+    back.querySelector('#f_clearPts').onclick = ()=>{ shapeState.pts = []; renderPreview(); };
+    back.querySelector('#f_gridSize').oninput = ()=>{ shapeState.gridL = parseFloat(back.querySelector('#f_gridSize').value); drawEditor(); };
+    back.querySelector('#f_gridSize').onkeydown = e=>e.stopPropagation();
+  };
+  // seed preset params from an existing rectangle so switching kinds starts from its size
+  if(!shapeState.params.L && g && g.shape!=='poly'){ shapeState.params.L = g.L; shapeState.params.W = g.W; }
+  renderShapeParams();
+  back.querySelector('#f_shape').onchange = ()=>{ shapeState.kind = back.querySelector('#f_shape').value; if(!editingId && PARAM_DEFS[shapeState.kind]){ back.querySelector('#f_stackable').checked = false; back.querySelector('#f_floorOnly').checked = true; } if(!shapeState.params.L){ const l = toC(back.querySelector('#f_l').value), w = toC(back.querySelector('#f_w').value); if(l) shapeState.params.L = l; if(w) shapeState.params.W = w; } renderShapeParams(); };
   back.querySelector('#manageCatsLink').onclick = (e)=>{ e.preventDefault(); back.remove(); openCategoriesModal(); };
   back.querySelector('#f_cancel').onclick = ()=>{ editingId = null; back.remove(); };
   if(back.querySelector('#f_delete')){
@@ -6670,8 +6906,17 @@ function openGearFormModal(editId){
     const catLabel = catById(cat).short || '';
     const typed = back.querySelector('#f_name').value.trim();
     const name = (cat==='other'||cat==='lift') && typed ? typed.toUpperCase() : (cat==='other' ? 'ITEM' : catLabel.toUpperCase());
-    const shape = back.querySelector('#f_shape').value;
-    const L = parseFloat(back.querySelector('#f_l').value), W = parseFloat(back.querySelector('#f_w').value), H = parseFloat(back.querySelector('#f_h').value), wt = parseFloat(back.querySelector('#f_wt').value);
+    const kindSel = back.querySelector('#f_shape').value;
+    const isPolyKind = PARAM_DEFS[kindSel]!==undefined;
+    const shape = isPolyKind ? 'poly' : kindSel;
+    let polyNorm = null;
+    if(isPolyKind){
+      const pts = currentPts();
+      if(pts.length<3){ showToast(kindSel==='custom' ? 'Draw at least three corners' : 'Fill in the shape\'s dimensions'); return; }
+      polyNorm = normalizePts(pts);
+      if(!(polyNorm.L>0.5) || !(polyNorm.W>0.5) || Math.abs(polyArea(polyNorm.pts.map(p=>({x:p.u,z:p.v}))))<1){ showToast('That shape has no area — check the dimensions'); return; }
+    }
+    const L = isPolyKind ? cmToDisplay(polyNorm.L,units) : parseFloat(back.querySelector('#f_l').value), W = isPolyKind ? cmToDisplay(polyNorm.W,units) : parseFloat(back.querySelector('#f_w').value), H = parseFloat(back.querySelector('#f_h').value), wt = parseFloat(back.querySelector('#f_wt').value);
     const depthBraw = shape==='trapezoid' ? parseFloat(back.querySelector('#f_depthB').value) : null;
     if(!(L>0) || !(W>0) || !(H>0) || !(wt>=0) || (shape==='trapezoid' && !(depthBraw>0))){ showToast('Fill in dimensions and weight'); return; }
     // a rectangle's two sides can be reordered so the longer one is always "L" — a trapezoid's
@@ -6681,6 +6926,8 @@ function openGearFormModal(editId){
     if(shape==='trapezoid'){
       Lc = displayToCm(L,units); depthA = displayToCm(W,units); depthB = displayToCm(depthBraw,units);
       Wc = Math.max(depthA, depthB); // bounding-box width, used everywhere else in the app
+    } else if(shape==='poly'){
+      Lc = polyNorm.L; Wc = polyNorm.W;   // the bounding box; the outline itself is in pts
     } else {
       Lc = displayToCm(Math.max(L,W),units); Wc = displayToCm(Math.min(L,W),units);
     }
@@ -6693,10 +6940,11 @@ function openGearFormModal(editId){
       stock: back.querySelector('#f_stock').checked
     };
     if(shape==='trapezoid'){ fields.depthA = depthA; fields.depthB = depthB; }
+    if(shape==='poly'){ fields.pts = polyNorm.pts; fields.shapeKind = kindSel; fields.shapeParams = kindSel==='custom' ? {} : Object.assign({}, shapeState.params); }
     const doSave = ()=>{
       if(editingId){
         const gg = state.gearLibrary.find(x=>x.id===editingId);
-        if(gg){ pushUndo('edit library item'); Object.assign(gg, fields); if(shape!=='trapezoid'){ delete gg.depthA; delete gg.depthB; } showToast('Updated "'+name+'"'); }
+        if(gg){ pushUndo('edit library item'); Object.assign(gg, fields); if(shape!=='trapezoid'){ delete gg.depthA; delete gg.depthB; } if(shape!=='poly'){ delete gg.pts; delete gg.shapeKind; delete gg.shapeParams; } inscribedCache.clear(); showToast('Updated "'+name+'"'); }
         editingId = null;
       } else {
         pushUndo('add library item');
