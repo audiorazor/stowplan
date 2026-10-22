@@ -1147,7 +1147,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v115'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v116'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -5903,14 +5903,27 @@ function layoutCards(){
   function newPage(){ page = document.createElement('div'); page.className='card-page'; out.appendChild(page); }
   newPage();
   var limit = function(){ return page.clientHeight - parseFloat(getComputedStyle(page).paddingBottom) - page.clientHeight*0.1; };
-  lines.forEach(function(l){
-    var el = l.cloneNode(true); page.appendChild(el);
-    if(el.offsetTop + el.offsetHeight > limit() && page.children.length>1){
-      page.removeChild(el);
-      var arr = document.createElement('div'); arr.className='carrow'; arr.textContent='\u2193'.repeat(28);
-      page.appendChild(arr);
-      newPage(); page.appendChild(el);
-    }
+  // a truck stays whole: its header and all its rows go on one card. If the card is already
+  // part-full and the truck won't fit in what's left, the whole truck moves to the next card.
+  // Only a truck too long for an empty card ever gets split, and then it carries the arrows.
+  var groups = []; lines.forEach(function(l){ if(l.className.indexOf('chead')>=0 || !groups.length) groups.push([]); groups[groups.length-1].push(l); });
+  var fits = function(){ var last = page.lastElementChild; return !last || (last.offsetTop + last.offsetHeight <= limit()); };
+  groups.forEach(function(grp){
+    var startCount = page.children.length;
+    var els = grp.map(function(l){ var el = l.cloneNode(true); page.appendChild(el); return el; });
+    if(fits()) return;
+    els.forEach(function(el){ page.removeChild(el); });
+    if(startCount > 0){ newPage(); els.forEach(function(el){ page.appendChild(el); }); if(fits()) return; els.forEach(function(el){ page.removeChild(el); }); }
+    // too long for one card on its own: flow it line by line with the arrows
+    els.forEach(function(el){
+      page.appendChild(el);
+      if(!fits() && page.children.length>1){
+        page.removeChild(el);
+        var arr = document.createElement('div'); arr.className='carrow'; arr.textContent='\u2193'.repeat(28);
+        page.appendChild(arr);
+        newPage(); page.appendChild(el);
+      }
+    });
   });
   // double-sided stock: an odd page count gets a blank back, so the next card starts on a front
   if(${card.duplex?'true':'false'} && out.children.length % 2 === 1) newPage();
@@ -5959,7 +5972,7 @@ function openPrintModal(){
     </details>
     <label class="opt"><input type="checkbox" id="p_labels"> <b>Case labels</b> — one per case</label>
     <div style="margin:0 0 8px 22px;"><select id="p_lsize">${labelOpts}</select></div>
-    <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Card text flows onto extra cards with ↓↓↓ arrows when a run is long, and uses each item's short name where you've given one.</div>
+    <div style="font-size:11px;color:var(--ink-soft);margin-bottom:10px;">Each truck stays whole on a card — a truck that won't fit in the space left starts a new card. Uses each item's short name where you've given one.</div>
     <div class="modal-row"><button class="btn-ghost" id="p_cancel">Cancel</button><button class="btn-block" id="p_go" style="flex:0 0 auto;">Open print view</button></div>
   `);
   back.querySelector('.modal').classList.add('wide');
