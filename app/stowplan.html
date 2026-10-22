@@ -1147,7 +1147,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v116'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v117'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -5902,7 +5902,8 @@ function layoutCards(){
   var page = null;
   function newPage(){ page = document.createElement('div'); page.className='card-page'; out.appendChild(page); }
   newPage();
-  var limit = function(){ return page.clientHeight - parseFloat(getComputedStyle(page).paddingBottom) - page.clientHeight*0.1; };
+  // the card's own margins are the safe print area — fill right up to them
+  var limit = function(){ return page.clientHeight - parseFloat(getComputedStyle(page).paddingBottom); };
   // a truck stays whole: its header and all its rows go on one card. If the card is already
   // part-full and the truck won't fit in what's left, the whole truck moves to the next card.
   // Only a truck too long for an empty card ever gets split, and then it carries the arrows.
