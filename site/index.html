@@ -110,6 +110,8 @@
   .tb-group button{ border-radius:0; margin-left:-1px; }
   .tb-group button:first-child{ border-radius:var(--radius) 0 0 2px; margin-left:0; }
   .tb-group button:last-child{ border-radius:0 2px 2px 0; }
+  .tb-arrow{ padding-left:8px !important; padding-right:8px !important; border-left:1px solid rgba(0,0,0,0.25) !important; }
+  #printMenu{ top:calc(100% + 6px); }
   .tb-menu-wrap{ position:relative; }
   .tb-more{ font-size:16px !important; line-height:1; padding:5px 10px !important; }
   .tb-menu{ position:absolute; right:0; top:calc(100% + 6px); min-width:260px; background:#fff; color:var(--ink); border:1px solid var(--line); border-radius:var(--radius); box-shadow:0 8px 24px rgba(0,0,0,0.18); padding:6px; z-index:60; }
@@ -276,6 +278,8 @@
   .load-row .load-names .nm{background:#EEF2F5;border:1px solid #D6DEE4;border-radius:var(--radius);padding:0 5px;margin:1px 3px 1px 0;display:inline-block;}
   .load-row .load-names .nm.un{background:none;border-color:transparent;color:var(--ink-soft);padding:0;}
   .sel-bar .gear-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .sel-bar .sel-hint{ margin-left:10px; opacity:.75; }
+  @media (max-width:1200px){ .sel-bar .sel-hint{ display:none; } }
   .icon-btn{
     background:none;
     border:1px solid var(--line);
@@ -973,14 +977,23 @@
       <span class="save-state idle" id="saveState"></span>
     </div>
     <div class="topbar-controls">
-      <div class="tb-group" aria-label="Plan">
-        <button id="newPlanBtn" title="Start a fresh plan">New</button>
-        <button id="loadPlanBtn" title="Open a saved plan">Open…</button>
-        <button id="savePlanBtn" title="Save this plan">Save</button>
+      <div class="tb-menu-wrap">
+        <button id="planMenuBtn" title="New, open or save a named plan (the workspace autosaves on its own)" aria-haspopup="true">Plan ▾</button>
+        <div class="tb-menu" id="planMenu" hidden style="min-width:230px;">
+          <button class="tb-menu-row" id="newPlanBtn">New plan…</button>
+          <button class="tb-menu-row" id="loadPlanBtn">Open a saved plan…</button>
+          <button class="tb-menu-row" id="savePlanBtn">Save as a named plan…</button>
+        </div>
       </div>
-      <div class="tb-group" aria-label="Output">
-        <button id="manifestBtn" title="Plain-text packing manifest">Manifest</button>
-        <button id="printBtn" class="btn-primary">Print / Export</button>
+      <div class="tb-menu-wrap">
+        <div class="tb-group" aria-label="Output">
+          <button id="printBtn" class="btn-primary" title="Print with your last settings (the arrow opens the options)">Print</button>
+          <button id="printOptsBtn" class="btn-primary tb-arrow" title="Print options, manifest" aria-haspopup="true">▾</button>
+        </div>
+        <div class="tb-menu" id="printMenu" hidden style="min-width:240px;">
+          <button class="tb-menu-row" id="printOptionsRow">Print / export options…</button>
+          <button class="tb-menu-row" id="manifestBtn">Manifest (plain text)…</button>
+        </div>
       </div>
       <div class="tb-menu-wrap">
         <button id="moreBtn" class="tb-more" title="Units, data import/export, backups" aria-haspopup="true" aria-expanded="false">⋯</button>
@@ -991,9 +1004,6 @@
               <option value="metric">cm / kg</option>
             </select>
           </label>
-          <button class="tb-menu-row narrow-only" id="menuNewBtn">New plan…</button>
-          <button class="tb-menu-row narrow-only" id="menuOpenBtn">Open plan…</button>
-          <button class="tb-menu-row narrow-only" id="menuManifestBtn">Manifest</button>
           <button class="tb-menu-row" id="dataBtn">Data — import / export / backup…</button>
           <button class="tb-menu-row" id="menuShortcutsBtn">Keyboard shortcuts <kbd>?</kbd></button>
         </div>
@@ -1051,15 +1061,15 @@
     <div class="main">
       <div class="panel" id="truckControlsBar" style="margin-bottom:16px;position:sticky;top:0;z-index:15;background:var(--panel);box-shadow:0 2px 6px rgba(0,0,0,0.06);">
         <div class="panel-body" style="padding:8px 14px;">
-          <div class="viz-toolbar" style="margin-bottom:6px;row-gap:6px;">
+          <div class="viz-toolbar" style="margin-bottom:6px;row-gap:6px;flex-wrap:nowrap;overflow:visible;">
             <button class="icon-btn" id="sideToggle" title="Hide the side panel (more room for the trucks)" aria-label="Toggle side panel">◀</button>
             <span class="editing-lbl">Editing</span>
             <select id="truckPick" class="truck-pick" title="Which truck you're editing — or just click one on the canvas"></select>
             <span id="truckBar" class="truck-bar"></span>
             <div class="layer-tabs" id="layerTabs"></div>
             <span class="spacer" style="flex:1"></span>
-            <button class="btn-ghost ib" id="undoBtn" disabled title="Ctrl/Cmd+Z" style="padding:4px 9px;">Undo</button>
-            <button class="btn-ghost ib" id="redoBtn" disabled title="Ctrl/Cmd+Shift+Z" style="padding:4px 9px;">Redo</button>
+            <button class="icon-btn ib" id="undoBtn" disabled title="Undo (⌘Z)"></button>
+            <button class="icon-btn ib" id="redoBtn" disabled title="Redo (⇧⌘Z)"></button>
             <span class="tb-menu-wrap">
               <button class="btn-ghost" id="packSettingsBtn" style="padding:4px 9px;" title="How new cases are placed and whether the packer stacks">⚙ Packing</button>
               <div class="tb-menu" id="packMenu" hidden style="left:0;right:auto;min-width:300px;">
@@ -1147,7 +1157,7 @@ const ICON = {
 /* ============================================================
    UNIT CONVERSION  (base units stored internally: cm, kg)
    ============================================================ */
-const APP_VERSION = 'v117'; // bump this with each build — shown in the Data panel so it's easy to
+const APP_VERSION = 'v118'; // bump this with each build — shown in the Data panel so it's easy to
                             // confirm which build is actually running, e.g. after an app update
 const CM_PER_IN = 2.54;
 const KG_PER_LB = 0.45359237;
@@ -1518,8 +1528,10 @@ function renderUndoButtons(){
   const ub = document.getElementById('undoBtn'), rb = document.getElementById('redoBtn');
   if(!ub) return;
   ub.disabled = !undoStack.length; rb.disabled = !redoStack.length;
-  ub.textContent = undoStack.length ? '↶ Undo '+undoStack[undoStack.length-1].label : '↶ Undo';
-  rb.textContent = redoStack.length ? '↷ Redo '+redoStack[redoStack.length-1].label : '↷ Redo';
+  // icon buttons; what they'd undo/redo lives in the tooltip
+  ub.innerHTML = ICON.undo; rb.innerHTML = ICON.redo;
+  ub.title = undoStack.length ? 'Undo '+undoStack[undoStack.length-1].label+' (⌘Z)' : 'Nothing to undo';
+  rb.title = redoStack.length ? 'Redo '+redoStack[redoStack.length-1].label+' (⇧⌘Z)' : 'Nothing to redo';
 }
 
 /* ============================================================
@@ -2606,15 +2618,20 @@ function renderInspector(){
     </div>`;
   // --- wiring ---
   const commitText = (inp, field, label)=>{
-    inp.onchange = ()=>{
+    const commit = ()=>{
       const v = inp.value.trim();
-      if(same(cases.map(cs=>cs[field]||'')) && v===(cases[0][field]||'')) return;
-      if(!v && !same(cases.map(cs=>cs[field]||''))) return;   // blank over "mixed" = leave alone
+      if(same(cases.map(cs=>cs[field]||'')) && v===(cases[0][field]||'')) return false;
+      if(!v && !same(cases.map(cs=>cs[field]||''))) return false;   // blank over "mixed" = leave alone
       pushUndo(cases.length>1 ? `${label} ×${cases.length}` : label);
       cases.forEach(cs=>{ if(v) cs[field]=v; else delete cs[field]; });
-      persist(); recomputeAndRender();
+      return true;
     };
-    inp.onkeydown = e=>{ e.stopPropagation(); if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){ inp.blur(); } if(e.key==='Tab'){ const order=['insp_name','insp_card','insp_wt']; const i=order.indexOf(inp.id); const nx=order[i+(e.shiftKey?-1:1)]; inspRefocus = nx||null; setTimeout(()=>{ inspRefocus=null; },0); } };
+    inp.onchange = ()=>{ if(inp._advancing) return; if(commit()){ persist(); recomputeAndRender(); } };
+    // Enter in the Name field: commit and move on to the next case in loading order, field
+    // still focused — so a whole truck can be named without touching the mouse
+    inp.onkeydown = e=>{ e.stopPropagation();
+      if(e.key==='Enter' && inp.id==='insp_name' && one){ e.preventDefault(); inp._advancing = true; const changed = commit(); const nk = neighbourCaseKey(ids[0], e.shiftKey ? -1 : 1); if(nk){ setSelection([nk], nk); inspRefocus = 'insp_name'; } if(changed || nk){ persist(); recomputeAndRender(); } else inp.blur(); return; }
+      if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){ inp.blur(); } if(e.key==='Tab'){ const order=['insp_name','insp_card','insp_wt']; const i=order.indexOf(inp.id); const nx=order[i+(e.shiftKey?-1:1)]; inspRefocus = nx||null; setTimeout(()=>{ inspRefocus=null; },0); } };
   };
   commitText($('#insp_name'), 'name', 'rename');
   commitText($('#insp_card'), 'cardName', 'print name');
@@ -2848,9 +2865,12 @@ function drawIsoTo(target, rectW, rectH, pr, respectLayer){
 function renderLayerTabs(){
   const wrap = $('#layerTabs');
   wrap.innerHTML = '';
-  const lab = document.createElement('span'); lab.className='lt-label'; lab.textContent='View'; wrap.appendChild(lab);
+  // only worth showing when this truck actually stacks
+  if(!packResult.layers || packResult.layers.length<2){ wrap.style.display = 'none'; return; }
+  wrap.style.display = '';
+  const lab = document.createElement('span'); lab.className='lt-label'; lab.textContent='Layers'; wrap.appendChild(lab);
   const allBtn = document.createElement('button');
-  allBtn.textContent = 'All layers';
+  allBtn.textContent = 'All';
   allBtn.title = 'Show every layer stacked';
   allBtn.className = state.activeLayer==='all' ? 'active' : '';
   allBtn.onclick = ()=>{ state.activeLayer='all'; renderLayerTabs(); renderIso(); renderFloor(); };
@@ -4461,14 +4481,16 @@ function renderSelBar(){
   syncPoolSelectionHighlight();
   const bar = $('#selBar');
   const sel = selectedBoxes();
-  const b = selectedBox() || sel[0] || null;   // primary may be a case that isn't on this floor plan
+  const b = selectedBox() || sel[0] || null;
   const u = state.units;
   const elsewhere = inspectedCases().length - sel.filter(x=>!x.isBar).length;
+  const clearBtn = '<button class="btn-ghost btn-quiet" id="clrSel" title="Esc">Clear</button>';
+  const hint = '<span class="hint sel-hint">right-click for actions · details in the Inspector</span>';
   if(!b){
     const n = inspectedCases().length;
     bar.innerHTML = n
-      ? `<span class="sel-name">${n} case${n!==1?'s':''} selected</span><span class="hint">not on this truck's floor plan — edit in the Inspector on the left</span><span class="spacer"></span><button class="btn-ghost" id="clrSel">Clear selection</button>`
-      : '<span class="hint">Click a case to select it · Shift-click or lasso for several · press <b>?</b> for all shortcuts</span>';
+      ? `<span class="sel-name">${n} case${n!==1?'s':''} selected</span><span class="hint">not on this truck's floor plan</span>${hint}<span class="spacer"></span>${clearBtn}`
+      : '<span class="hint">Click a case to select it · Shift-click or lasso for several · right-click for actions · <b>?</b> for shortcuts</span>';
     if($('#clrSel')) $('#clrSel').onclick = ()=>{ clearSelection(); afterSelectionChange(); };
     renderInspector();
     return;
@@ -4477,30 +4499,18 @@ function renderSelBar(){
     const cases = sel.filter(x=>!x.isBar), bars = sel.filter(x=>x.isBar);
     const wt = cases.reduce((s,x)=>s+x.item.weight,0);
     const oneStack = !bars.length && cases.length>1 && stackMembers(cases[0]).length===cases.length && cases.every(x=>stackMembers(x).length===cases.length);
-    const top = oneStack ? stackMembers(cases[0])[cases.length-1] : null;
     bar.innerHTML = `<span class="sel-name">${oneStack ? `Stack of ${cases.length}` : `${cases.length} case${cases.length!==1?'s':''}${bars.length?` + ${bars.length} bar${bars.length>1?'s':''}`:''} selected`}</span>
       <span class="sel-pos">${fmt(kgToDisplay(wt,u),0)} ${wtUnitLabel(u)} · ${cases.filter(x=>x.manual).length} pinned${elsewhere>0?` · +${elsewhere} not on this truck`:''}</span>
-      <span class="spacer"></span>
-      ${oneStack ? `<button class="btn-ghost" id="unstackTop" title="Move the top case down onto the floor at the nearest open spot (U)">Unstack top</button><button class="btn-ghost" id="pickTop" title="Select just the top case so you can rotate, label or move it on its own (or Alt+click it)">Pick top case</button>` : ''}
-      ${cases.length?'<button class="btn-ghost" id="rotSel" title="R">Rotate all</button>'+(cases.some(x=>hasOutline(x.item))?'<button class="btn-ghost" id="flipSel" title="Turn the frames end-for-end (180°) in place (F)">Flip 180°</button>':'')+'<button class="btn-ghost" id="dupSel" title="Ctrl/Cmd+D">Duplicate</button>':''}
-      ${cases.some(x=>x.manual)?'<button class="btn-ghost" id="relSel">Auto-place</button>':''}
-      <button class="btn-ghost" id="rmSelCase" title="Take these out of the truck — they stay on the leg, unassigned (Delete)">Out of truck</button>
-      <button class="btn-ghost" id="clrSel">Clear selection</button>`;
-    if($('#unstackTop')) $('#unstackTop').onclick = ()=>unstackSelected(top.key);
-    if($('#pickTop')) $('#pickTop').onclick = ()=>{ setSelection([top.key], top.key); afterSelectionChange(); };
-    if($('#rotSel')) $('#rotSel').onclick = rotateSelected;
-    if($('#flipSel')) $('#flipSel').onclick = flipSelected;
-    if($('#dupSel')) $('#dupSel').onclick = duplicateSelected;
-    if($('#relSel')) $('#relSel').onclick = releaseSelected;
-    $('#rmSelCase').onclick = ()=>{ const keys = cases.map(x=>x.key); if(bars.length){ pushUndo('remove load bars'); state.loadBars = state.loadBars.filter(x=>!bars.some(bb=>bb.key==='bar:'+x.id)); } if(keys.length) removeUnits(keys); else { clearSelection(); persist(); recomputeAndRender(); } };
+      ${hint}<span class="spacer"></span>${clearBtn}`;
     $('#clrSel').onclick = ()=>{ clearSelection(); afterSelectionChange(); };
     renderInspector();
     return;
   }
   if(b.isBar){
     const bw = barWordFor(state.containerKey);
-    bar.innerHTML = `<span class="gear-swatch" style="background:#1B1F23"></span><span class="sel-name">${bw==='strap'?'Strap':'Load bar'}</span><span class="sel-pos">${fmt(cmToDisplay(b.x,u),0)} ${lenUnitLabel(u)} from nose · ${fmt(kgToDisplay(BAR_WEIGHT,u),0)} ${wtUnitLabel(u)}</span><span class="spacer"></span><button class="btn-ghost" id="rmBar">Remove ${bw}</button>`;
+    bar.innerHTML = `<span class="gear-swatch" style="background:#1B1F23"></span><span class="sel-name">${bw==='strap'?'Strap':'Load bar'}</span><span class="sel-pos">${fmt(cmToDisplay(b.x,u),0)} ${lenUnitLabel(u)} from nose · ${fmt(kgToDisplay(BAR_WEIGHT,u),0)} ${wtUnitLabel(u)}</span><span class="spacer"></span><button class="btn-ghost" id="rmBar">Remove ${bw}</button>${clearBtn}`;
     $('#rmBar').onclick = removeSelectedBar;
+    $('#clrSel').onclick = ()=>{ clearSelection(); afterSelectionChange(); };
     renderInspector();
     return;
   }
@@ -4510,23 +4520,11 @@ function renderSelBar(){
     <span class="unit-color" style="background:${colorOf(b)};cursor:default;"></span>
     <span class="sel-name" title="Rename in the Inspector (Enter)">${esc(cs && cs.name ? cs.name : b.item.name)}</span>
     ${b.manual ? '<span class="pin-tag">PINNED</span>' : '<span class="hint">auto</span>'}
-    <span class="sel-pos">${fmt(cmToDisplay(b.x+(state.clearance||0)/2,u),0)} ${lenUnitLabel(u)} from nose · ${fmt(cmToDisplay(b.z+(state.clearance||0)/2,u),0)} ${lenUnitLabel(u)} from side · level ${lvl+1}${b.rot?' · rotated':''}</span>
+    <span class="sel-pos">row ${rowNumberOf(b)} · ${fmt(cmToDisplay(b.x+(state.clearance||0)/2,u),0)} ${lenUnitLabel(u)} from nose · ${fmt(cmToDisplay(b.z+(state.clearance||0)/2,u),0)} ${lenUnitLabel(u)} from side · level ${lvl+1}${b.rot?' · rotated':''}${b.flip?' · turned':''}</span>
     ${b.manual && b.support<0.8 && b.y>EPS ? '<span class="unplaced-tag">'+fmt(b.support*100,0)+'% SUPPORTED</span>' : ''}
     ${elsewhere>0 ? `<span class="hint">+${elsewhere} selected elsewhere</span>` : ''}
-    <span class="spacer"></span>
-    <button class="btn-ghost" id="rotSel" title="R">Rotate 90°</button>
-    ${hasOutline(b.item) ? '<button class="btn-ghost" id="flipSel" title="Turn it end-for-end (180°) in place — the angled edge switches ends (F)">Flip 180°</button>' : ''}
-    ${b.y>EPS ? '<button class="btn-ghost" id="unstackSel" title="Move this case down onto the floor, off whatever it\'s sitting on (U)">Unstack</button>' : ''}
-    <button class="btn-ghost" id="dupSel" title="Add another one just like it (Ctrl/Cmd+D)">Duplicate</button>
-    ${b.manual ? '<button class="btn-ghost" id="relSel">Auto-place</button>' : ''}
-    <button class="btn-ghost" id="rmSelCase" title="Take this case out of the truck — it stays on the leg, unassigned (Delete)">Out of truck</button>
-  `;
-  $('#rotSel').onclick = rotateSelected;
-  if($('#flipSel')) $('#flipSel').onclick = flipSelected;
-  if($('#unstackSel')) $('#unstackSel').onclick = ()=>unstackSelected(b.key);
-  $('#rmSelCase').onclick = ()=>removeUnits([b.key]);
-  $('#dupSel').onclick = duplicateSelected;
-  if($('#relSel')) $('#relSel').onclick = releaseSelected;
+    ${hint}<span class="spacer"></span>${clearBtn}`;
+  $('#clrSel').onclick = ()=>{ clearSelection(); afterSelectionChange(); };
   renderInspector();
 }
 
@@ -4546,6 +4544,7 @@ document.addEventListener('keydown', e=>{
   if(e.key==='Escape' && !state.selectedKey){ closeCtxMenu(); truckQuiet = true; renderFloor(); return; }
   if(!state.selectedKey) return;
   if(e.key==='Enter' && !e.ctrlKey && !e.metaKey){ const n = $('#insp_name'); if(n){ e.preventDefault(); n.focus(); n.select(); } return; }
+  if(e.key==='Tab' && !e.ctrlKey && !e.metaKey && !e.altKey){ const nk = neighbourCaseKey(state.selectedKey, e.shiftKey ? -1 : 1); if(nk){ e.preventDefault(); setSelection([nk], nk); afterSelectionChange(); } return; }
   const step = (state.units==='imperial' ? CM_PER_IN : 1) * (e.shiftKey?10:1);
   if(e.key==='r' || e.key==='R'){ e.preventDefault(); rotateSelected(); }
   else if(e.key==='u' || e.key==='U'){ e.preventDefault(); unstackFromKeyboard(); }
@@ -5353,7 +5352,8 @@ function openShortcutsModal(){
       [mod+' + D', 'Duplicate'],
       [mod+' + C / '+mod+' + V', 'Copy and paste cases'],
       ['Delete / Backspace', 'Take the selection out of the truck (it stays on the leg, unassigned)'],
-      ['Enter', 'Rename the selected case in the Inspector'],
+      ['Enter', 'Rename the selected case in the Inspector — Enter again names it and moves to the next case'],
+      ['Tab / Shift+Tab', 'Step to the next / previous case in loading order'],
     ]],
     ['Plan', [
       [mod+' + Z / '+mod+' + Shift + Z', 'Undo / redo'],
@@ -5544,6 +5544,13 @@ function rowReadingOrder(boxes){
   const cols = []; const TOL = 20;
   sorted.forEach(b=>{ const last = cols[cols.length-1]; if(last && b.x - last.start <= TOL) last.boxes.push(b); else cols.push({ start:b.x, boxes:[b] }); });
   return cols.flatMap(c=>c.boxes.sort((a,b)=>a.z-b.z||a.y-b.y));
+}
+// the case before/after this one in loading order (row by row, column by column) on the active truck
+function neighbourCaseKey(key, dir){
+  const order = rowsForPack(packResult).flatMap(r=>rowReadingOrder(r.boxes)).map(b=>b.key);
+  const i = order.indexOf(key); if(i<0 || !order.length) return null;
+  const j = i + dir; if(j<0 || j>=order.length) return null;
+  return order[j];
 }
 function rowNumberOf(b){
   const rows = rowsForPack(packResult);
@@ -5954,7 +5961,7 @@ function openPrintModal(){
   const back = openModal(`
     <h3>Print / export</h3>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-bottom:6px;">
-      <div><label style="font-size:11px;color:var(--ink-soft)">Project / header</label><input type="text" id="p_project" value="${esc(state.projectName||'')}" placeholder="e.g. BTS 2026 — US TRUCKS"></div>
+      <div><label style="font-size:11px;color:var(--ink-soft)">Sheet header</label><input type="text" id="p_project" value="${esc(state.projectName||'')}" placeholder="e.g. BTS 2026 — US TRUCKS (defaults to the plan name)"></div>
       <div><label style="font-size:11px;color:var(--ink-soft)">Trucks</label><select id="p_scope"><option value="all">All trucks</option><option value="active">Current truck only</option></select></div>
     </div>
     <label class="opt"><input type="checkbox" id="p_sheets" checked> <b>Pack sheets</b> — top-down drawings</label>
@@ -7010,8 +7017,6 @@ function wireEvents(){
   $('#toggleAddForm').onclick = ()=>openGearFormModal(null);
   $('#undoBtn').onclick = undo;
   $('#redoBtn').onclick = redo;
-  $('#undoBtn').insertAdjacentHTML('afterbegin', ICON.undo);
-  $('#redoBtn').insertAdjacentHTML('afterbegin', ICON.redo);
   $('#photoImportBtn').querySelector('.ib').innerHTML = ICON.camera;
   $('#shortcutsBtn').onclick = openShortcutsModal;
   // isometric view folds away when you'd rather have the floor plans and weights closer together
@@ -7029,9 +7034,6 @@ function wireEvents(){
     document.addEventListener('click', e=>{ if(!menu.hidden && !menu.contains(e.target)) closeMenu(); });
     document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !menu.hidden) closeMenu(); });
     $('#menuShortcutsBtn').onclick = ()=>{ closeMenu(); openShortcutsModal(); };
-    $('#menuNewBtn').onclick = ()=>{ closeMenu(); $('#newPlanBtn').click(); };
-    $('#menuOpenBtn').onclick = ()=>{ closeMenu(); $('#loadPlanBtn').click(); };
-    $('#menuManifestBtn').onclick = ()=>{ closeMenu(); $('#manifestBtn').click(); };
     $('#dataBtn').addEventListener('click', closeMenu);
   }
   // phone jump bar: scroll to a section, unfolding it first if it's collapsed
@@ -7063,7 +7065,10 @@ function wireEvents(){
   document.querySelectorAll('#sideRail [data-rail]').forEach(b=>{ b.onclick = ()=>{ const which = b.getAttribute('data-rail'); state.sideCollapsed = false; if(which==='cases' || which==='catalog') state.invTab = which; persist(); applySide(); renderInventory(); if(which==='inspector'){ const ip = $('#inspPanel'); if(ip) ip.scrollIntoView({block:'nearest'}); } }; });
   applySide();
   
-  $('#printBtn').onclick = openPrintModal;
+  // Print = straight to the print view with last time's settings; the arrow has the options and the manifest
+  $('#printBtn').onclick = ()=>{ const po = state.printOpts; if(po && (po.sheets||po.card||po.labels)){ openPrintView(Object.assign({}, po, { project: state.projectName||'' })); } else openPrintModal(); };
+  $('#printOptionsRow').onclick = ()=>{ $('#printMenu').hidden = true; openPrintModal(); };
+  { const wire = (btnId, menuId)=>{ const btn = $('#'+btnId), menu = $('#'+menuId); btn.onclick = (e)=>{ e.stopPropagation(); document.querySelectorAll('.tb-menu').forEach(m=>{ if(m!==menu) m.hidden = true; }); menu.hidden = !menu.hidden; }; document.addEventListener('click', e=>{ if(!menu.hidden && !menu.contains(e.target) && e.target!==btn) menu.hidden = true; }); menu.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{ menu.hidden = true; })); }; wire('planMenuBtn','planMenu'); wire('printOptsBtn','printMenu'); }
   $('#dataBtn').onclick = openDataModal;
   $('#savePlanBtn').onclick = openSavePlanModal;
   $('#loadPlanBtn').onclick = openLoadPlanModal;
